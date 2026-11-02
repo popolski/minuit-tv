@@ -7,12 +7,12 @@
 | 3 | Direction artistique | ✅ `DESIGN.md` |
 | 4 | Parcours utilisateur, correspondance Siri Remote | ✅ (ci-dessous) |
 | 5 | Socle : cœur métier testé (Xtream, EPG, catalogue, persistance) | ✅ 79 tests |
-| 6 | Lecteur + connexion Xtream (couche tvOS) | ✅ écrit, ⏳ compilé |
-| 7 | EPG et zapping (guide, mini-guide, panneaux) | ✅ écrit, ⏳ compilé |
-| 8 | Catch-up et Start Over | ✅ écrit, ⏳ compilé |
+| 6 | Lecteur + connexion Xtream (couche tvOS) | ✅ écrit, ✅ compilé |
+| 7 | EPG et zapping (guide, mini-guide, panneaux) | ✅ écrit, ✅ compilé |
+| 8 | Catch-up et Start Over | ✅ écrit, ✅ compilé |
 | 9 | Tests automatisés et vérifications statiques | ✅ (cœur) |
-| 10 | **Premier build macOS + correction des erreurs** | ⏳ **votre accord requis** |
-| 11 | Installation atvloadly, qualification sur Apple TV avec vos retours | ⏳ |
+| 10 | Build macOS automatique (méthode Lanterne) | ✅ Release `build-3` |
+| 11 | Installation atvloadly, qualification sur Apple TV avec vos retours | 🔄 installé, connexion OK |
 
 ## Parcours principaux
 

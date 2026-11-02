@@ -5,7 +5,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Fonctionnalité | 1. Implémentée | 2. Compilée | 3. Test automatisé | 4. Vérifiée sur Apple TV |
 |---|---|---|---|---|
 | Analyse de l'adresse serveur, URL Xtream (direct, timeshift ×2 styles) | ✅ | ✅ Linux | ✅ | ⏳ |
-| Authentification, états de compte (actif, expiré, banni, refus) | ✅ | ✅ Linux | ✅ | ⏳ |
+| Authentification, états de compte (actif, expiré, banni, refus) | ✅ | ✅ | ✅ | ✅ connexion (serveur HTTP) |
 | Décodage tolérant (types variables, entrées invalides, doublons, VOD égarée) | ✅ | ✅ Linux | ✅ | ⏳ |
 | Nouvelles tentatives bornées, erreurs sans secret | ✅ | ✅ Linux | ✅ | — |
 | Masquage des secrets dans les journaux | ✅ | ✅ Linux | ✅ | — |
@@ -20,19 +20,22 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Détection image figée / son sans image / blocage | ✅ | ✅ Linux | ✅ (scénarios) | ⏳ |
 | Échelle de reprise bornée | ✅ | ✅ Linux | ✅ | ⏳ |
 | Disponibilité replay / Start Over, sondage d'archive | ✅ | ✅ Linux | ✅ | ⏳ |
-| Keychain, reconnexion automatique, mode dégradé | ✅ | ⏳ | ⏳ | ⏳ |
-| Moteur AVPlayer (HLS) | ✅ | ⏳ | ⏳ | ⏳ |
-| Moteur AetherEngine (TS, HLS, archives) | ✅ | ⏳ | ⏳ | ⏳ |
-| Contrôleur de lecture (génération, un seul moteur, veille, réseau) | ✅ | ⏳ | ⏳ | ⏳ |
-| Lecteur : télécommande, bandeau, panneaux, transport replay | ✅ | ⏳ | ⏳ | ⏳ |
-| Guide TV (grille virtualisée, ligne maintenant, fenêtre glissante) | ✅ | ⏳ | ⏳ | ⏳ |
-| Écrans : connexion, accueil, chaînes, recherche, favoris, réglages | ✅ | ⏳ | ⏳ | ⏳ |
-| Icône et Top Shelf | ✅ | ⏳ | — | ⏳ |
+| Keychain, reconnexion automatique, mode dégradé | ✅ | ✅ | ⏳ | ⏳ |
+| Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
+| Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
+| Contrôleur de lecture (génération, un seul moteur, veille, réseau) | ✅ | ✅ | ⏳ | ⏳ |
+| Lecteur : télécommande, bandeau, panneaux, transport replay | ✅ | ✅ | ⏳ | ⏳ |
+| Guide TV (grille virtualisée, ligne maintenant, fenêtre glissante) | ✅ | ✅ | ⏳ | ⏳ |
+| Écrans : connexion, accueil, chaînes, recherche, favoris, réglages | ✅ | ✅ | ⏳ | ✅ connexion ; reste à détailler |
+| Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
-État au 2 novembre 2026 : **79 tests réussis** sous Linux (Swift 6.1.3, Docker).
-Le code tvOS a passé une **analyse syntaxique** (`swiftc -parse`) mais **n'a jamais
-été compilé** : la vérification des types exige le SDK Apple, donc un runner macOS.
-Le premier build révélera vraisemblablement quelques erreurs à corriger.
+État au 2 novembre 2026 :
+- **79 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
+- **Application tvOS compilée** par la CI (image `xcode-27`, Xcode 27.1), sans avertissement
+  dans le code de Minuit ; IPA vérifiée (arm64, tvOS, frameworks FFmpeg) — Release `build-3`.
+- **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur
+  Xtream en HTTP OK, application jugée « déjà très fonctionnelle ». Les fonctions sont à
+  qualifier une par une (lecture, zapping, guide, replay…).
 
 ## Limites connues et incertitudes
 
