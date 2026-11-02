@@ -29,7 +29,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Écrans : connexion, accueil, chaînes, recherche, favoris, réglages | ✅ | ⏳ | ⏳ | ⏳ |
 | Icône et Top Shelf | ✅ | ⏳ | — | ⏳ |
 
-État au 2 novembre 2026 : **77 tests réussis** sous Linux (Swift 6.1.3, Docker).
+État au 2 novembre 2026 : **79 tests réussis** sous Linux (Swift 6.1.3, Docker).
 Le code tvOS a passé une **analyse syntaxique** (`swiftc -parse`) mais **n'a jamais
 été compilé** : la vérification des types exige le SDK Apple, donc un runner macOS.
 Le premier build révélera vraisemblablement quelques erreurs à corriger.

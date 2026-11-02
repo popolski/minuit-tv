@@ -34,23 +34,24 @@ struct LoginView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .focused($field, equals: .server)
+                    .foregroundStyle(field == .server ? Theme.Palette.night : Theme.Palette.textPrimary)
                 TextField("Identifiant", text: $username)
                     .textContentType(.username)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .focused($field, equals: .username)
+                    .foregroundStyle(field == .username ? Theme.Palette.night : Theme.Palette.textPrimary)
                 SecureField("Mot de passe", text: $password)
                     .textContentType(.password)
                     .focused($field, equals: .password)
+                    .foregroundStyle(field == .password ? Theme.Palette.night : Theme.Palette.textPrimary)
                 if let message {
                     Label(message, systemImage: "exclamationmark.circle")
                         .font(Theme.Typeface.label(24))
                         .foregroundStyle(Theme.Palette.danger)
                 }
-                if !server.isEmpty, !server.lowercased().hasPrefix("https") {
-                    Text("Connexion non chiffrée (HTTP) : le chiffrement sera utilisé automatiquement si le serveur le propose.")
-                        .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textTertiary)
-                }
+                Text("Adresse HTTP ou HTTPS acceptée, port compris (ex. http://exemple.tv:8080).")
+                    .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textTertiary)
                 Button {
                     isWorking = true
                     Task {

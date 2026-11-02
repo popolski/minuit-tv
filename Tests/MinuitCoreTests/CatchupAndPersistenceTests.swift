@@ -115,7 +115,7 @@ final class PersistenceTests: XCTestCase {
 
     func testSettingsDefaultsAreSafe() throws {
         let settings = AppSettings()
-        XCTAssertEqual(settings.transportSecurity, .preferHTTPS)
+        XCTAssertEqual(settings.transportSecurity, .allowHTTP, "HTTP accepté par défaut : la majorité des serveurs Xtream")
         XCTAssertEqual(settings.enginePreference, .automatic)
         let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
         XCTAssertEqual(decoded, settings)

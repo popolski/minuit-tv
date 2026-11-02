@@ -26,7 +26,8 @@ struct RootView: View {
                 }
             }
         }
-        .foregroundStyle(Theme.Palette.textPrimary)
+        // Pas de couleur de texte globale : elle s'appliquerait aussi aux champs de saisie
+        // focalisés (fond blanc système) et les rendrait illisibles. Le mode sombre suffit.
         .fullScreenCover(isPresented: $router.isPlayerPresented) {
             PlayerScreen(app: app) { router.isPlayerPresented = false }
                 .ignoresSafeArea()

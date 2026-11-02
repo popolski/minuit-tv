@@ -144,7 +144,7 @@ extension CacheEnvelope: Decodable where T: Decodable {}
 public struct AppSettings: Sendable, Codable, Equatable {
     public var resumeLastChannelOnLaunch: Bool = true
     public var enginePreference: EnginePreference = .automatic
-    public var transportSecurity: TransportSecurityPolicy = .preferHTTPS
+    public var transportSecurity: TransportSecurityPolicy = .allowHTTP
     public var userAgentPreset: UserAgentPreset = .minuit
     public var catchup: CatchupSettings = CatchupSettings()
     /// Inverse le sens haut/bas du zapping.

@@ -13,7 +13,7 @@ direct, zapping, guide des programmes, favoris, replay et « Reprendre au début
 - Cœur métier `MinuitCore` en Swift 6, testé sous Linux (Docker, gratuit).
 - Application tvOS SwiftUI + UIKit, moteur vidéo AetherEngine (MPEG-TS, HDR, Atmos)
   avec repli AVPlayer (HLS).
-- IPA non signée produite à la demande par GitHub Actions, signée et installée par atvloadly.
+- IPA non signée compilée par GitHub Actions à chaque push, publiée en Release, signée et installée par atvloadly.
 
 ## Installer
 

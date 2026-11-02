@@ -14,7 +14,7 @@ minuit-tv/
 │   ├── Persistence/  préférences (UserDefaults), caches (Caches/), réglages
 │   ├── Networking/   HTTPClient (URLSession), classification des erreurs
 │   └── Diagnostics/  masquage des secrets, journal circulaire, statistiques
-├── Tests/MinuitCoreTests/        77 tests, exécutés sous Linux (Docker)
+├── Tests/MinuitCoreTests/        79 tests, exécutés sous Linux (Docker)
 └── App/                          application tvOS (SwiftUI + UIKit)
     ├── project.yml               spécification XcodeGen (aucun .xcodeproj versionné)
     └── Sources/
@@ -136,6 +136,7 @@ au lieu de prétendre lire.
 - `Redactor` masque utilisateur et mot de passe dans les URL (chemin et requête) et en
   littéral ; tout journal passe par `DiagnosticsLog`, qui l'applique. Script
   `static-checks.sh` : interdit `print`/`NSLog` et les secrets codés en dur.
-- Transport : « Préférer HTTPS » par défaut (bascule automatique si le serveur annonce
-  un port HTTPS fonctionnel), « Exiger HTTPS » disponible. ATS autorise HTTP car les
-  serveurs sont saisis par l'utilisateur (limite documentée dans les réglages).
+- Transport : HTTP accepté par défaut (la plupart des serveurs Xtream n'offrent que HTTP) ;
+  « Préférer HTTPS » (bascule si le serveur annonce un port HTTPS fonctionnel) et
+  « Exiger HTTPS » disponibles dans les réglages. ATS : `NSAllowsArbitraryLoads` seul
+  (toute autre clé ATS le neutraliserait).

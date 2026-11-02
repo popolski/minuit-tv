@@ -49,6 +49,7 @@ public enum XtreamError: Error, Sendable, Equatable {
             case .secureConnectionFailed: return "La connexion sécurisée (HTTPS) a échoué."
             case .cancelled: return "Opération annulée."
             case .tooLarge: return "Réponse du serveur trop volumineuse."
+            case .blockedBySystemPolicy: return "Connexion HTTP bloquée par tvOS (configuration de l'application)."
             case .other(let code): return "Erreur réseau (\(code))."
             }
         case .http(let status):

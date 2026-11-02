@@ -235,6 +235,19 @@ final class XtreamClientTests: XCTestCase {
         }
     }
 
+    func testPlainHTTPServerIsAccepted() async throws {
+        let http = MockHTTPClient(sequence: [ok(try Fixture.data("auth_active.json"))])
+        XCTAssertEqual(testCredentials.server.scheme, .http)
+        _ = try await makeClient(http, policy: .allowHTTP).authenticate()
+        XCTAssertEqual(http.requests.first?.url.scheme, "http")
+    }
+
+    func testSystemTransportBlockIsReportedAsSuch() {
+        let error = NSError(domain: NSURLErrorDomain, code: NSURLErrorAppTransportSecurityRequiresSecureConnection)
+        XCTAssertEqual(URLSessionHTTPClient.classify(error), .blockedBySystemPolicy)
+        XCTAssertFalse(XtreamError.transport(.blockedBySystemPolicy).userMessage.contains("HTTPS a échoué"))
+    }
+
     func testErrorMessagesNeverContainSecrets() {
         let errors: [XtreamError] = [.transport(.timedOut), .http(status: 403), .authenticationRejected,
                                      .accountExpired(Date()), .tooManyConnections(max: 2), .unexpectedResponse(context: "x")]

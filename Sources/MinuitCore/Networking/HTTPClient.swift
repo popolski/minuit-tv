@@ -46,12 +46,14 @@ public enum TransportError: Error, Sendable, Equatable {
     case secureConnectionFailed
     case cancelled
     case tooLarge
+    /// Requête HTTP refusée par la politique de sécurité du système (ATS).
+    case blockedBySystemPolicy
     case other(code: Int)
 
     public var isTransient: Bool {
         switch self {
         case .timedOut, .cannotConnect, .other: return true
-        case .offline, .cannotFindHost, .secureConnectionFailed, .cancelled, .tooLarge: return false
+        case .offline, .cannotFindHost, .secureConnectionFailed, .cancelled, .tooLarge, .blockedBySystemPolicy: return false
         }
     }
 }
@@ -153,9 +155,10 @@ public final class URLSessionHTTPClient: HTTPClient {
         case NSURLErrorCannotConnectToHost: return .cannotConnect
         case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted,
              NSURLErrorServerCertificateHasBadDate, NSURLErrorServerCertificateNotYetValid,
-             NSURLErrorServerCertificateHasUnknownRoot, NSURLErrorClientCertificateRejected,
-             NSURLErrorAppTransportSecurityRequiresSecureConnection:
+             NSURLErrorServerCertificateHasUnknownRoot, NSURLErrorClientCertificateRejected:
             return .secureConnectionFailed
+        case NSURLErrorAppTransportSecurityRequiresSecureConnection:
+            return .blockedBySystemPolicy
         case NSURLErrorCancelled: return .cancelled
         default: return .other(code: nsError.code)
         }

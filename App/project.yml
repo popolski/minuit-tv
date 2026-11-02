@@ -45,11 +45,10 @@ targets:
         UIAppSupportsHDR: true
         # Politique explicite : les serveurs Xtream sont saisis par l'utilisateur et très
         # majoritairement en HTTP. ATS ne peut pas être restreint à des domaines inconnus.
-        # Compensation : préférence HTTPS automatique, réglage « Exiger HTTPS », aucune
-        # journalisation des URL non masquées.
+        # ATTENTION : n'ajouter AUCUNE autre clé (NSAllowsArbitraryLoadsForMedia, …) :
+        # leur présence fait ignorer NSAllowsArbitraryLoads et bloque l'API en HTTP.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
-          NSAllowsArbitraryLoadsForMedia: true
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
