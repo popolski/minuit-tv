@@ -1,0 +1,157 @@
+name: Build
+
+# Même méthode que Lanterne : chaque push compile l'application sur un Mac GitHub
+# (gratuit, le dépôt est public), vérifie l'IPA et, sur main, la publie en Release.
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Image GitHub « xcode-27 » (macOS 27, ARM64) : chaîne d'outils de référence d'AetherEngine.
+  XCODE_APP: /Applications/Xcode_27.1.app
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+
+jobs:
+  core-tests:
+    name: Tests MinuitCore (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: swift:6.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift test
+        run: |
+          set -o pipefail
+          swift test --parallel 2>&1 | tee core-tests.log
+      - name: Vérifications statiques
+        run: sh scripts/static-checks.sh
+      - name: Journaux de test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-tests-log
+          path: core-tests.log
+          retention-days: 14
+
+  app:
+    name: Application tvOS (IPA)
+    runs-on: xcode-27
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sélection de Xcode
+        run: |
+          sudo xcode-select -s "$XCODE_APP"
+          xcodebuild -version
+          xcrun --sdk appletvos --show-sdk-version
+      - name: XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+          xcodegen generate --spec App/project.yml
+      - name: Version
+        id: version
+        run: |
+          MARKETING=$(grep -E '^\s+MARKETING_VERSION:' App/project.yml | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "version=${MARKETING}" >> "$GITHUB_OUTPUT"
+          echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "Version ${MARKETING} (${GITHUB_RUN_NUMBER}) — commit ${GITHUB_SHA::8}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cache des paquets Swift
+        uses: actions/cache@v4
+        with:
+          path: App/.spm
+          key: spm-xcode27-${{ hashFiles('App/project.yml', 'Package.swift') }}
+          restore-keys: spm-xcode27-
+      - name: Résolution des dépendances
+        run: |
+          set -o pipefail
+          xcodebuild -resolvePackageDependencies -project App/Minuit.xcodeproj -scheme Minuit \
+            -clonedSourcePackagesDirPath App/.spm -skipPackagePluginValidation -skipMacroValidation 2>&1 | tee resolve.log
+      - name: Compilation (appareil tvOS, arm64)
+        run: |
+          STATUS=0
+          xcodebuild build \
+            -project App/Minuit.xcodeproj -scheme Minuit -configuration Release \
+            -destination 'generic/platform=tvOS' \
+            -derivedDataPath build/dd -clonedSourcePackagesDirPath App/.spm \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ steps.version.outputs.build }} \
+            > build.log 2>&1 || STATUS=$?
+          grep -E "error:|warning:.*App/Sources|BUILD (SUCCEEDED|FAILED)" build.log | sort -u | head -n 300 || true
+          echo "xcodebuild : code de sortie $STATUS"
+          exit $STATUS
+      - name: Résumé des erreurs de compilation
+        if: failure()
+        run: grep -E "error:" build.log | sort -u | head -n 100 >> "$GITHUB_STEP_SUMMARY" || true
+      - name: IPA non signée
+        run: |
+          IPA="dist/Minuit-${{ steps.version.outputs.version }}-${{ steps.version.outputs.build }}-unsigned.ipa"
+          bash scripts/package-ipa.sh build/dd/Build/Products/Release-appletvos/Minuit.app "$IPA"
+          bash scripts/verify-ipa.sh "$IPA" app.minuit.tv
+          shasum -a 256 dist/*.ipa | tee dist/SHA256SUMS.txt
+      - name: Artefact IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Minuit-${{ steps.version.outputs.version }}-${{ steps.version.outputs.build }}
+          path: |
+            dist/*.ipa
+            dist/SHA256SUMS.txt
+          retention-days: 30
+      - name: Journaux de compilation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ github.run_number }}
+          path: |
+            build.log
+            resolve.log
+          retention-days: 14
+
+  release:
+    name: Publication (Release GitHub)
+    # Chaque build réussi de main (et chaque tag v*) publie une Release avec l'IPA :
+    # lien public stable pour l'installation via atvloadly.
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [core-tests, app]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Minuit-*
+          merge-multiple: true
+          path: dist
+      - name: Release GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.app.outputs.version }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="$GITHUB_REF_NAME"; TITLE="Minuit $GITHUB_REF_NAME"
+          else
+            TAG="build-$GITHUB_RUN_NUMBER"; TITLE="Minuit $VERSION (build $GITHUB_RUN_NUMBER)"
+          fi
+          cat > notes.md <<NOTES
+          IPA **non signée** pour atvloadly (signature par votre identifiant Apple à l'installation).
+          Commit : $GITHUB_SHA
+          Statut : compilée et vérifiée par la CI ; qualification sur Apple TV : voir docs/STATUS.md.
+          NOTES
+          gh release create "$TAG" dist/*.ipa dist/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TITLE" --notes-file notes.md --latest
+          echo "Release : https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"

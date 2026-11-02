@@ -70,9 +70,10 @@ final class PlayerViewController: UIViewController {
             _ = controller.panel
             _ = controller.phase
         } onChange: { [weak self] in
+            let target = self
             DispatchQueue.main.async {
-                self?.panelDidChange()
-                self?.observePanel()
+                target?.panelDidChange()
+                target?.observePanel()
             }
         }
         panelDidChange()

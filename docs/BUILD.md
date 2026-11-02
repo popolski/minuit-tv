@@ -24,17 +24,19 @@ Estimation : un build tvOS ≈ 8 à 15 min (le premier plus long : téléchargem
 FFmpeg), soit ≈ 0,50 à 0,95 $ en dépôt privé : **12 à 20 builds/mois dans le quota
 gratuit**, 0 $ en dépôt public.
 
-## Stratégie retenue
+## Stratégie retenue (même méthode que Lanterne)
 
-| Étape | Où | Coût | Déclenchement |
-|---|---|---|---|
-| Tests du cœur + vérifications statiques | NAS / PC (Docker) | 0 | à volonté |
-| Idem en CI | runner Linux | ≈ 0,01 $ (0 en public) | automatique si `Sources/`, `Tests/` changent |
-| **Compilation tvOS + IPA** | runner macOS | ≈ 0,5–1 $ (0 en public) | **manuel uniquement**, après votre accord |
+Un seul workflow, `.github/workflows/build.yml`, déclenché à chaque `push` (branches
+`main` et `claude/**`, tags `v*`), sur pull request ou à la main :
 
-Économies intégrées au workflow `build-tvos.yml` : déclenchement manuel, annulation
-du build précédent, cache des paquets Swift, délai maximal de 35 min, artefacts
-conservés 14 jours, journal joint seulement en cas d'échec.
+| Tâche | Runner | Rôle |
+|---|---|---|
+| `core-tests` | Linux | 77 tests du cœur + vérifications statiques |
+| `app` | macOS `xcode-27` (Xcode 27.1) | compilation tvOS, IPA non signée, vérification de l'IPA (`scripts/verify-ipa.sh`) |
+| `release` | Linux | sur `main` uniquement : publication de l'IPA dans une **Release GitHub** `build-N` |
+
+Le dépôt étant public, ces runners sont gratuits. Économies conservées : annulation
+du build précédent sur la même branche, cache des paquets Swift.
 
 ## Lancer les tests localement
 
@@ -50,19 +52,18 @@ Windows (PowerShell, Docker Desktop), depuis le dossier du dépôt :
 powershell -ExecutionPolicy Bypass -File scripts/test-core.ps1
 ```
 
-## Produire l'IPA
-
-GitHub → onglet **Actions** → **Build tvOS (IPA non signée)** → **Run workflow**.
-L'artefact `Minuit-<n>-unsigned-ipa` contient `Minuit-<n>-unsigned.ipa`.
-
 ## Installer avec atvloadly
 
-1. Télécharger l'artefact (zip) depuis la page du build et en extraire l'`.ipa`.
+1. Télécharger le dernier IPA depuis les
+   [Releases](https://github.com/popolski/minuit-tv/releases) (`build-N`, fichier
+   `Minuit-…-unsigned.ipa`). Aucun compte GitHub nécessaire, pas de zip à extraire.
 2. Dans l'interface web d'atvloadly (sur le NAS), choisir l'Apple TV appairée,
-   importer l'IPA, se connecter avec l'identifiant Apple.
+   importer l'IPA et se connecter avec l'identifiant Apple (un compte gratuit suffit).
 3. atvloadly re-signe l'application (et peut modifier l'identifiant de bundle :
    l'application n'en dépend pas — pas de groupe Keychain, pas d'App Group).
 4. Compte Apple gratuit : renouvellement tous les 7 jours (automatisé par atvloadly).
+5. **Mise à jour** : ouvrir d'abord une autre app sur l'Apple TV, puis installer par-dessus
+   (identifiants, favoris et réglages sont conservés).
 
 Points d'attention :
 

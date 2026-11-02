@@ -120,7 +120,9 @@ final class EPGService {
         let window = DateInterval(start: Date().addingTimeInterval(-Double(maxArchiveDays()) * 86_400),
                                   end: Date().addingTimeInterval(Double(daysAhead) * 86_400))
         let log = self.log
-        Task.detached(priority: .utility) { [weak self] in
+        Task { [weak self] in
+            // Téléchargement et analyse hors du fil principal ; application du résultat ensuite.
+            let (finalSummary, finalMapped) = await Task.detached(priority: .utility) { () -> (String, [ChannelID: [Programme]]) in
             let started = Date()
             var summary: String
             var mapped: [ChannelID: [Programme]] = [:]
@@ -141,10 +143,10 @@ final class EPGService {
                 summary = "XMLTV illisible"
                 log.log(.warning, "epg", "XMLTV illisible : \(error)")
             }
-            let finalSummary = summary
-            let finalMapped = mapped
-            await MainActor.run {
-                guard let self else { return }
+            return (summary, mapped)
+            }.value
+            guard let self else { return }
+            do {
                 let now = Date()
                 for (id, programmes) in finalMapped { self.index.merge(programmes, for: id, at: now) }
                 if !finalMapped.isEmpty {

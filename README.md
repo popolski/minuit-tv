@@ -15,8 +15,14 @@ direct, zapping, guide des programmes, favoris, replay et « Reprendre au début
   avec repli AVPlayer (HLS).
 - IPA non signée produite à la demande par GitHub Actions, signée et installée par atvloadly.
 
-```bash
-sh scripts/test-core.sh
-```
+## Installer
+
+1. Télécharger le dernier IPA : [Releases](https://github.com/popolski/minuit-tv/releases)
+   (`build-N`, fichier `Minuit-…-unsigned.ipa`).
+2. L'installer sur l'Apple TV avec [atvloadly](https://github.com/bitxeno/atvloadly) et un
+   compte Apple (gratuit suffit).
+3. Pour une mise à jour : **ouvrir d'abord une autre app sur l'Apple TV**, puis installer par-dessus.
+
+Tests du cœur en local (NAS, Docker) : `sh scripts/test-core.sh`.
 
 Minuit ne fournit aucun contenu : il lit uniquement le compte que vous lui confiez.

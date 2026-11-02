@@ -117,7 +117,10 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
     private func itemStatusChanged(_ item: AVPlayerItem) {
         guard item === self.item else { return }
         if item.status == .failed { report(error: item.error as NSError?) }
-        if item.status == .readyToPlay { applyDisplayCriteria(for: item) }
+        if item.status == .readyToPlay {
+            applyDisplayCriteria(for: item)
+            loadAudioGroup(for: item)
+        }
     }
 
     /// Correspondance fréquence d'images / plage dynamique (réglage « Faire correspondre le contenu »).
@@ -126,7 +129,24 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
     /// moteur principal, applique les critères avant l'attribution de l'item.
     private func applyDisplayCriteria(for item: AVPlayerItem) {
         guard matchContent, let manager = view.window?.avDisplayManager, manager.isDisplayCriteriaMatchingEnabled else { return }
-        manager.preferredDisplayCriteria = item.asset.preferredDisplayCriteria
+        let asset = item.asset
+        Task { [weak self] in
+            let criteria = try? await asset.load(.preferredDisplayCriteria)
+            guard let self, item === self.item else { return }
+            manager.preferredDisplayCriteria = criteria
+        }
+    }
+
+    /// Groupe des pistes audio, chargé de façon asynchrone une fois l'item prêt.
+    private var audibleGroup: AVMediaSelectionGroup?
+
+    private func loadAudioGroup(for item: AVPlayerItem) {
+        let asset = item.asset
+        Task { [weak self] in
+            let group = try? await asset.loadMediaSelectionGroup(for: .audible)
+            guard let self, item === self.item else { return }
+            self.audibleGroup = group
+        }
     }
 
     private func report(error: NSError?) {
@@ -184,6 +204,7 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
         item?.asset.cancelLoading()
         player = nil
         item = nil
+        audibleGroup = nil
     }
 
     func healthSample(at time: TimeInterval, wantsToPlay: Bool) -> HealthSample {
@@ -207,7 +228,7 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
     }
 
     var audioTracks: [EngineTrack] {
-        guard let item, let group = item.asset.mediaSelectionGroup(forMediaCharacteristic: .audible) else { return [] }
+        guard let item, let group = audibleGroup else { return [] }
         let selected = item.currentMediaSelection.selectedMediaOption(in: group)
         return group.options.enumerated().map { index, option in
             EngineTrack(id: index, title: option.displayName, isSelected: option == selected)
@@ -215,8 +236,7 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
     }
 
     func selectAudioTrack(id: Int) {
-        guard let item, let group = item.asset.mediaSelectionGroup(forMediaCharacteristic: .audible),
-              group.options.indices.contains(id) else { return }
+        guard let item, let group = audibleGroup, group.options.indices.contains(id) else { return }
         item.select(group.options[id], in: group)
     }
 

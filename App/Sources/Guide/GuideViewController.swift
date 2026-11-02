@@ -78,9 +78,10 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
         withObservationTracking {
             _ = app.epg.revision
         } onChange: { [weak self] in
+            let target = self
             DispatchQueue.main.async {
-                self?.epgDidChange()
-                self?.observeEPG()
+                target?.epgDidChange()
+                target?.observeEPG()
             }
         }
     }
