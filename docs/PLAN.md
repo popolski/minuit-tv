@@ -6,7 +6,7 @@
 | 2 | Architecture, choix du moteur vidéo | ✅ `ARCHITECTURE.md` |
 | 3 | Direction artistique | ✅ `DESIGN.md` |
 | 4 | Parcours utilisateur, correspondance Siri Remote | ✅ (ci-dessous) |
-| 5 | Socle : cœur métier testé (Xtream, EPG, catalogue, persistance) | ✅ 79 tests |
+| 5 | Socle : cœur métier testé (Xtream, EPG, catalogue, persistance) | ✅ 82 tests |
 | 6 | Lecteur + connexion Xtream (couche tvOS) | ✅ écrit, ✅ compilé |
 | 7 | EPG et zapping (guide, mini-guide, panneaux) | ✅ écrit, ✅ compilé |
 | 8 | Catch-up et Start Over | ✅ écrit, ✅ compilé |

@@ -8,7 +8,7 @@ import MinuitCore
 /// Correspondance Siri Remote, direct sans panneau :
 ///  ▲ / ▼ (clic ou balayage) : chaîne précédente / suivante
 ///  ◀ : panneau des chaînes     ▶ : panneau des programmes (replay)
-///  Clic central : bandeau d'information     Appui long central : favori
+///  Clic central : commandes (pistes, favori, format…)     Appui long central : favori
 ///  Lecture/Pause : pause du direct (tampon local)     Retour : ferme le panneau, puis le lecteur
 /// En replay : ◀ / ▶ = −30 s / +30 s, ▲ / ▼ = barre de transport (Début, Direct…).
 final class PlayerViewController: UIViewController {
@@ -172,11 +172,8 @@ final class PlayerViewController: UIViewController {
             if controller.isLive { controller.panel = .programmes } else { controller.seekArchive(by: 30) }
         case .select:
             if longPressConsumedSelect { longPressConsumedSelect = false; return }
-            if controller.isLive {
-                if controller.bannerVisible { controller.hideOverlays() } else { controller.showBanner(duration: 8) }
-            } else {
-                controller.panel = .transport
-            }
+            // Clic central : commandes (informations + boutons ronds), comme le reste de tvOS.
+            controller.panel = controller.isLive ? .controls : .transport
         case .playPause:
             controller.togglePlayPause()
             controller.showBanner()

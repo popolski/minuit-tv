@@ -1,5 +1,13 @@
 # Direction artistique « Minuit »
 
+> **Version 2 (verre)** — inspirée de l'esprit de Chillio (retour utilisateur), sans en copier
+> l'identité : fond bleu nuit à halo coloré qui suit la chaîne focalisée, surfaces de verre
+> translucides, **focus inversé** (pastille claire, texte nuit), capsule de navigation flottante
+> (Recherche · Direct · Guide · Réglages), écran Direct en deux volets (catégories / chaînes),
+> tuiles de logo à la couleur du logo, lecteur épuré (chaîne en haut à gauche, DIRECT en haut
+> à droite, boutons ronds et menu flottant en bas à droite), réglages avec panneau d'identité.
+> La version 1 est décrite ci-dessous ; palette et typographie restent valables.
+
 ## Intention
 
 La télévision du soir : une pièce sombre, un écran qui ne crie pas. L'interface

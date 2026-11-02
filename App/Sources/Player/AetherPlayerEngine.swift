@@ -133,6 +133,11 @@ final class AetherPlayerEngine: PlaybackEngine {
         }
     }
 
+    var fillsScreen: Bool {
+        get { engine.videoGravity == .resizeAspectFill }
+        set { engine.videoGravity = newValue ? .resizeAspectFill : .resizeAspect }
+    }
+
     func play() { engine.play() }
     func pause() { engine.pause() }
 

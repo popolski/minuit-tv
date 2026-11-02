@@ -24,7 +24,7 @@ final class PlaybackController {
         case failed(String)
     }
 
-    enum Panel: Equatable { case none, channels, programmes, tracks, transport }
+    enum Panel: Equatable { case none, controls, channels, programmes, tracks, transport }
 
     struct ArchiveSession: Equatable {
         /// Fenêtre d'origine (programme complet), référence des positions.
@@ -247,6 +247,7 @@ final class PlaybackController {
         view.frame = hostView.bounds
         view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         hostView.addSubview(view)
+        fresh.fillsScreen = fillsScreen
         engine = fresh
         return fresh
     }
@@ -512,6 +513,20 @@ final class PlaybackController {
     }
 
     // MARK: Pistes, bandeau, messages
+
+    /// Image recadrée pour remplir l'écran (sinon ajustée, bandes noires possibles).
+    private(set) var fillsScreen = false
+
+    func toggleFillMode() {
+        fillsScreen.toggle()
+        engine?.fillsScreen = fillsScreen
+        showToast(fillsScreen ? "Image : plein écran" : "Image : ajustée")
+    }
+
+    func reloadCurrent() {
+        guard let target else { return }
+        tune(target)
+    }
 
     var audioTracks: [EngineTrack] { engine?.audioTracks ?? [] }
     func selectAudioTrack(_ id: Int) { engine?.selectAudioTrack(id: id) }

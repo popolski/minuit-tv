@@ -17,17 +17,21 @@ struct LoginView: View {
 
     var body: some View {
         HStack(spacing: 120) {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("Minuit").font(Theme.Typeface.display(120))
-                Text("La télévision en direct,\nsans détour.")
-                    .font(Theme.Typeface.title(44))
+            VStack(spacing: 22) {
+                Image(systemName: "moon.stars.fill").font(.system(size: 96)).foregroundStyle(Theme.Palette.moon)
+                Text("Minuit").font(Theme.Typeface.display(110)).foregroundStyle(Theme.Palette.textPrimary)
+                Text("La télévision en direct, sans détour.")
+                    .font(Theme.Typeface.title(32))
                     .foregroundStyle(Theme.Palette.textSecondary)
                 Text("Saisissez les informations Xtream Codes fournies par votre fournisseur. Les identifiants sont conservés dans le trousseau sécurisé de l'Apple TV.")
-                    .font(Theme.Typeface.body(24))
+                    .font(Theme.Typeface.body(23))
+                    .multilineTextAlignment(.center)
                     .foregroundStyle(Theme.Palette.textTertiary)
-                    .frame(maxWidth: 640, alignment: .leading)
+                    .frame(maxWidth: 620)
             }
+            .frame(width: 700)
             VStack(alignment: .leading, spacing: 22) {
+                Text("Compte Xtream Codes").sectionHeader()
                 TextField("Adresse du serveur (ex. exemple.tv:8080)", text: $server)
                     .textContentType(.URL)
                     .keyboardType(.URL)
@@ -61,11 +65,12 @@ struct LoginView: View {
                 } label: {
                     HStack {
                         if isWorking { ProgressView() }
-                        Text(isWorking ? "Connexion…" : "Se connecter").font(Theme.Typeface.label(28))
+                        Text(isWorking ? "Connexion…" : "Se connecter").font(Theme.Typeface.label(28)).primaryText()
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
                 }
+                .buttonStyle(GlassRowButtonStyle(cornerRadius: 40, horizontalPadding: 30, verticalPadding: 14))
                 .disabled(isWorking || server.isEmpty || username.isEmpty || password.isEmpty)
                 .focused($field, equals: .submit)
             }

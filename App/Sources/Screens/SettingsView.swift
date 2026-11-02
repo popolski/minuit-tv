@@ -6,24 +6,68 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("Compte") {
-                    NavigationLink("Compte et serveur") { AccountSettings() }
+            HStack(alignment: .top, spacing: 60) {
+                // Identité, à gauche.
+                VStack(spacing: 22) {
+                    Spacer()
+                    Image(systemName: "moon.stars.fill").font(.system(size: 92)).foregroundStyle(Theme.Palette.moon)
+                    Text("Minuit").font(Theme.Typeface.display(110)).foregroundStyle(Theme.Palette.textPrimary)
+                    Text("La télévision en direct, sans détour.")
+                        .font(Theme.Typeface.caption(22)).foregroundStyle(Theme.Palette.textSecondary)
+                        .padding(.horizontal, 22).padding(.vertical, 8)
+                        .background(Capsule().fill(Theme.Palette.glass))
+                    Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"))")
+                        .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textTertiary)
+                    Spacer()
                 }
-                Section("Préférences") {
-                    NavigationLink("Lecture") { PlaybackSettings() }
-                    NavigationLink("Catégories") { CategorySettings() }
-                    NavigationLink("Guide TV") { GuideSettings() }
-                    NavigationLink("Replay") { ReplaySettings() }
-                    NavigationLink("Réseau et sécurité") { NetworkSettings() }
+                .frame(width: 700)
+
+                // Réglages groupés, à droite.
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        group("Compte") {
+                            link("Compte et serveur", detail: app.serverDisplayName, icon: "person.crop.circle") { AccountSettings() }
+                        }
+                        group("Préférences") {
+                            link("Lecture", icon: "play.rectangle") { PlaybackSettings() }
+                            link("Catégories", icon: "folder") { CategorySettings() }
+                            link("Guide TV", icon: "calendar") { GuideSettings() }
+                            link("Replay", icon: "clock.arrow.circlepath") { ReplaySettings() }
+                            link("Réseau et sécurité", icon: "network") { NetworkSettings() }
+                        }
+                        group("Assistance") {
+                            link("Diagnostics", icon: "stethoscope") { DiagnosticsView() }
+                            link("À propos", icon: "info.circle") { AboutView() }
+                        }
+                    }
+                    .padding(.vertical, 30)
+                    .padding(.horizontal, 12)
                 }
-                Section("Assistance") {
-                    NavigationLink("Diagnostics") { DiagnosticsView() }
-                    NavigationLink("À propos") { AboutView() }
-                }
+                .scrollClipDisabled()
+                .focusSection()
             }
-            .navigationTitle("Réglages")
+            .padding(.horizontal, Theme.Metrics.safeHorizontal)
         }
+    }
+
+    @ViewBuilder
+    private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        Text(title).sectionHeader().padding(.leading, 22).padding(.top, 22).padding(.bottom, 4)
+        content()
+    }
+
+    private func link<Destination: View>(_ title: String, detail: String? = nil, icon: String,
+                                         @ViewBuilder destination: @escaping () -> Destination) -> some View {
+        NavigationLink(destination: destination) {
+            HStack(spacing: 18) {
+                Image(systemName: icon).font(.system(size: 24, weight: .semibold)).frame(width: 34).secondaryText()
+                Text(title).font(Theme.Typeface.label(26)).primaryText()
+                Spacer()
+                if let detail { Text(detail).font(Theme.Typeface.caption(21)).tertiaryText().lineLimit(1) }
+                Image(systemName: "chevron.right").font(.system(size: 20, weight: .bold)).tertiaryText()
+            }
+        }
+        .buttonStyle(GlassRowButtonStyle(horizontalPadding: 24, verticalPadding: 16))
     }
 }
 

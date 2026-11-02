@@ -1,7 +1,10 @@
 import SwiftUI
 import MinuitCore
 
-/// Surcouche du lecteur : bandeau, panneaux, états de chargement et d'erreur.
+/// Surcouche du lecteur, style « verre » :
+/// - en haut à gauche : tuile du logo, chaîne, métadonnées ; en haut à droite : DIRECT et heure ;
+/// - en bas : programme, progression, suivant ; boutons ronds à droite (mode commandes) ;
+/// - panneaux latéraux translucides (chaînes, programmes) et menus flottants.
 struct PlayerOverlayView: View {
     let app: AppModel
     @Bindable var controller: PlaybackController
@@ -9,9 +12,9 @@ struct PlayerOverlayView: View {
     var body: some View {
         ZStack {
             stateLayer
-            if controller.bannerVisible && controller.panel == .none && controller.isLive {
-                InfoBanner(app: app, controller: controller)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            if controller.isLive && (controller.panel == .controls || (controller.bannerVisible && controller.panel == .none)) {
+                LiveChrome(app: app, controller: controller, showsControls: controller.panel == .controls)
+                    .transition(.opacity)
             }
             switch controller.panel {
             case .channels:
@@ -21,34 +24,30 @@ struct PlayerOverlayView: View {
                 ProgrammePanel(app: app, controller: controller)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             case .transport:
-                TransportPanel(app: app, controller: controller)
+                TransportPanel(controller: controller)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             case .tracks:
                 TracksPanel(controller: controller)
                     .transition(.opacity)
-            case .none:
+            case .none, .controls:
                 EmptyView()
             }
             if let toast = controller.toast {
                 VStack {
-                    HStack {
-                        Spacer()
-                        Text(toast)
-                            .font(Theme.Typeface.label())
-                            .padding(.horizontal, 28).padding(.vertical, 16)
-                            .background(.ultraThinMaterial, in: Capsule())
-                    }
+                    Text(toast)
+                        .font(Theme.Typeface.label(24))
+                        .foregroundStyle(Theme.Palette.textPrimary)
+                        .padding(.horizontal, 30).padding(.vertical, 14)
+                        .background(.ultraThinMaterial, in: Capsule())
                     Spacer()
                 }
-                .padding(.horizontal, Theme.Metrics.safeHorizontal)
-                .padding(.top, Theme.Metrics.safeVertical)
-                .transition(.opacity)
+                .padding(.top, Theme.Metrics.safeVertical + 10)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .animation(Theme.Motion.panel, value: controller.panel)
         .animation(Theme.Motion.standard, value: controller.bannerVisible)
         .animation(Theme.Motion.standard, value: controller.toast)
-        .foregroundStyle(Theme.Palette.textPrimary)
     }
 
     @ViewBuilder private var stateLayer: some View {
@@ -64,7 +63,7 @@ struct PlayerOverlayView: View {
             FailureView(message: message, controller: controller)
         case .idle, .playing:
             if controller.isBuffering {
-                ProgressView().scaleEffect(1.4).tint(Theme.Palette.moon)
+                ProgressView().scaleEffect(1.4).tint(Theme.Palette.textPrimary)
             }
         }
     }
@@ -77,11 +76,11 @@ private struct TuningView: View {
     var channel: Channel?
 
     var body: some View {
-        VStack(spacing: 24) {
-            if let channel { ChannelLogoView(channel: channel, size: CGSize(width: 220, height: 132)) }
-            ProgressView().tint(Theme.Palette.moon)
+        VStack(spacing: 26) {
+            if let channel { ChannelLogoView(channel: channel, size: CGSize(width: 240, height: 134)) }
+            ProgressView().tint(Theme.Palette.textPrimary)
             if let title {
-                Text(title).font(Theme.Typeface.label()).foregroundStyle(Theme.Palette.textSecondary)
+                Text(title).font(Theme.Typeface.label(24)).foregroundStyle(Theme.Palette.textSecondary)
             }
         }
         .padding(48)
@@ -94,100 +93,253 @@ private struct FailureView: View {
 
     var body: some View {
         ZStack {
-            Theme.Palette.night.opacity(0.85).ignoresSafeArea()
-            VStack(spacing: 28) {
+            Theme.Palette.night.opacity(0.8).ignoresSafeArea()
+            VStack(spacing: 30) {
                 Image(systemName: "antenna.radiowaves.left.and.right.slash")
                     .font(.system(size: 64, weight: .light))
                     .foregroundStyle(Theme.Palette.ember)
-                Text(message).font(Theme.Typeface.title(40)).multilineTextAlignment(.center)
-                HStack(spacing: 32) {
-                    Button("Réessayer") { controller.retry() }
-                    Button("Autres chaînes") { controller.panel = .channels }
+                Text(message).font(Theme.Typeface.title(38)).multilineTextAlignment(.center)
+                    .foregroundStyle(Theme.Palette.textPrimary)
+                HStack(spacing: 24) {
+                    Button { controller.retry() } label: {
+                        Label("Réessayer", systemImage: "arrow.clockwise").font(Theme.Typeface.label(24)).primaryText()
+                    }
+                    .buttonStyle(GlassRowButtonStyle(cornerRadius: 40, horizontalPadding: 34, verticalPadding: 16))
+                    .fixedSize()
+                    Button { controller.panel = .channels } label: {
+                        Label("Autres chaînes", systemImage: "list.bullet").font(Theme.Typeface.label(24)).primaryText()
+                    }
+                    .buttonStyle(GlassRowButtonStyle(cornerRadius: 40, horizontalPadding: 34, verticalPadding: 16))
+                    .fixedSize()
                 }
-                .buttonStyle(.bordered)
             }
             .frame(maxWidth: 1100)
         }
     }
 }
 
-// MARK: - Bandeau d'information
+// MARK: - Habillage du direct (bandeau + commandes)
 
-private struct InfoBanner: View {
+private struct LiveChrome: View {
     let app: AppModel
     let controller: PlaybackController
+    let showsControls: Bool
 
     var body: some View {
-        VStack {
-            Spacer()
-            ZStack(alignment: .bottom) {
-                Theme.Palette.scrimBottom.frame(height: 420).allowsHitTesting(false)
-                if let id = controller.displayedChannel, let channel = app.library.channel(id) {
-                    TimelineView(.periodic(from: .now, by: 15)) { context in
-                        content(channel: channel, now: context.date)
-                    }
+        TimelineView(.periodic(from: .now, by: 15)) { context in
+            if let id = controller.displayedChannel, let channel = app.library.channel(id) {
+                let (current, next) = app.epg.nowNext(channel.id, at: context.date)
+                VStack(spacing: 0) {
+                    top(channel: channel, current: current, now: context.date)
+                    Spacer()
+                    bottom(current: current, next: next, now: context.date)
                 }
+                .onAppear { app.epg.ensureFresh([channel.id]) }
             }
         }
         .ignoresSafeArea()
     }
 
-    private func content(channel: Channel, now: Date) -> some View {
-        let (current, next) = app.epg.nowNext(channel.id, at: now)
-        return HStack(alignment: .top, spacing: 36) {
-            ChannelLogoView(channel: channel, size: CGSize(width: 200, height: 120))
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 16) {
+    private func top(channel: Channel, current: Programme?, now: Date) -> some View {
+        HStack(alignment: .top, spacing: 22) {
+            ChannelLogoView(channel: channel, size: CGSize(width: 132, height: 74))
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 12) {
                     if let number = channel.number {
-                        Text("\(number)").font(Theme.Typeface.time(30)).foregroundStyle(Theme.Palette.textSecondary)
+                        Text("\(number)").font(Theme.Typeface.time(28)).foregroundStyle(Theme.Palette.textSecondary)
                     }
-                    Text(channel.name).font(Theme.Typeface.label(30))
-                    StatusBadge(kind: .live)
+                    Text(channel.name).font(Theme.Typeface.label(32)).foregroundStyle(Theme.Palette.textPrimary)
                     if app.isFavorite(channel.id) {
-                        Image(systemName: "star.fill").foregroundStyle(Theme.Palette.moon)
-                    }
-                    if channel.hasAnnouncedArchive {
-                        Label("Replay \(channel.archive?.days ?? 0) j", systemImage: "clock.arrow.circlepath")
-                            .font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.archive)
-                    }
-                    if controller.isPaused {
-                        Label("En pause", systemImage: "pause.fill").font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.ember)
+                        Image(systemName: "star.fill").font(.system(size: 20)).foregroundStyle(Theme.Palette.moon)
                     }
                 }
-                if let current {
-                    Text(current.title).font(Theme.Typeface.display(46)).lineLimit(1)
-                    HStack(spacing: 16) {
-                        Text(current.start.clockText).font(Theme.Typeface.time())
-                        ProgressLine(progress: current.progress(at: now)).frame(width: 520)
-                        Text(current.end.clockText).font(Theme.Typeface.time())
-                        Text("· reste \(max(0, Int(current.end.timeIntervalSince(now) / 60))) min")
-                            .font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.textSecondary)
-                    }
-                    .foregroundStyle(Theme.Palette.textSecondary)
-                } else {
-                    Text("Programme non communiqué").font(Theme.Typeface.title(36)).foregroundStyle(Theme.Palette.textSecondary)
-                }
-                if let next {
-                    HStack(spacing: 12) {
-                        Text("Ensuite").font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.textTertiary)
-                        Text(next.start.clockText).font(Theme.Typeface.time(22)).foregroundStyle(Theme.Palette.textSecondary)
-                        Text(next.title).font(Theme.Typeface.body(26)).lineLimit(1)
-                    }
-                }
-                Text("◀ Chaînes   ▶ Programmes   ▲▼ Zapper   Appui long : favori")
-                    .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textTertiary)
-                    .padding(.top, 6)
+                Text(metaLine(channel: channel))
+                    .font(Theme.Typeface.caption(22)).foregroundStyle(Theme.Palette.textSecondary)
             }
             Spacer()
-            Text(now.clockText).font(Theme.Typeface.time(34)).foregroundStyle(Theme.Palette.textSecondary)
+            VStack(alignment: .trailing, spacing: 10) {
+                HStack(spacing: 14) {
+                    if controller.isPaused {
+                        Label("En pause", systemImage: "pause.fill").font(Theme.Typeface.caption(21))
+                            .foregroundStyle(Theme.Palette.textPrimary)
+                    }
+                    StatusBadge(kind: .live)
+                }
+                Text(now.clockText).font(Theme.Typeface.time(30)).foregroundStyle(Theme.Palette.textPrimary)
+            }
         }
         .padding(.horizontal, Theme.Metrics.safeHorizontal)
-        .padding(.bottom, Theme.Metrics.safeVertical + 10)
-        .onAppear { app.epg.ensureFresh([channel.id]) }
+        .padding(.top, Theme.Metrics.safeVertical)
+        .padding(.bottom, 60)
+        .background(Theme.Palette.scrimTop)
+    }
+
+    private func metaLine(channel: Channel) -> String {
+        var parts: [String] = []
+        if let category = channel.categoryIDs.first.flatMap({ id in app.library.categories.first { $0.id == id } }) {
+            parts.append(category.name)
+        }
+        if let quality = QualityBadge.parse(channel.name) { parts.append(quality.rawValue) }
+        if let archive = channel.archive, archive.days > 0 { parts.append("Replay \(archive.days) j") }
+        if let attempt = controller.activeAttempt { parts.append(attempt.format == .hls ? "HLS" : "MPEG-TS") }
+        return parts.joined(separator: " • ")
+    }
+
+    private func bottom(current: Programme?, next: Programme?, now: Date) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let current {
+                Text(current.title).font(Theme.Typeface.programme(44)).foregroundStyle(Theme.Palette.textPrimary).lineLimit(1)
+                HStack(spacing: 18) {
+                    Text(current.start.clockText).font(Theme.Typeface.time(22))
+                    ProgressLine(progress: current.progress(at: now), tint: Theme.Palette.ember, height: 5)
+                    Text(current.end.clockText).font(Theme.Typeface.time(22))
+                }
+                .foregroundStyle(Theme.Palette.textSecondary)
+            } else {
+                Text("Programme non communiqué").font(Theme.Typeface.programme(36)).foregroundStyle(Theme.Palette.textSecondary)
+            }
+            HStack(alignment: .bottom) {
+                if let next {
+                    Text("Ensuite à \(next.start.clockText) · \(next.title)")
+                        .font(Theme.Typeface.body(24)).foregroundStyle(Theme.Palette.textSecondary).lineLimit(1)
+                } else if !showsControls {
+                    Text("Clic central : commandes · ◀ chaînes · ▶ programmes")
+                        .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textTertiary)
+                }
+                Spacer()
+                if showsControls {
+                    ControlButtons(app: app, controller: controller)
+                }
+            }
+        }
+        .padding(.horizontal, Theme.Metrics.safeHorizontal)
+        .padding(.bottom, Theme.Metrics.safeVertical)
+        .padding(.top, 120)
+        .background(Theme.Palette.scrimBottom)
+    }
+}
+
+/// Boutons ronds du lecteur, avec libellé du bouton focalisé et menu « Plus ».
+private struct ControlButtons: View {
+    let app: AppModel
+    let controller: PlaybackController
+
+    enum Item: Hashable { case channels, programmes, audio, favorite, fill, more }
+
+    @FocusState private var focused: Item?
+    @State private var menuOpen = false
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 14) {
+            if menuOpen {
+                MoreMenu(controller: controller) { menuOpen = false }
+                    .transition(.scale(scale: 0.9, anchor: .bottomTrailing).combined(with: .opacity))
+            }
+            Text(label(for: focused))
+                .font(Theme.Typeface.caption(21)).foregroundStyle(Theme.Palette.textPrimary)
+                .opacity(focused == nil || menuOpen ? 0 : 1)
+            HStack(spacing: 22) {
+                button(.channels, "list.bullet") { controller.panel = .channels }
+                button(.programmes, "calendar") { controller.panel = .programmes }
+                button(.audio, "waveform") { controller.panel = .tracks }
+                button(.favorite, isFavorite ? "star.fill" : "star") {
+                    guard let id = controller.displayedChannel else { return }
+                    app.toggleFavorite(id)
+                    controller.showToast(app.isFavorite(id) ? "Ajoutée aux favoris" : "Retirée des favoris")
+                }
+                button(.fill, controller.fillsScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right") {
+                    controller.toggleFillMode()
+                }
+                button(.more, "ellipsis") { withAnimation(Theme.Motion.panel) { menuOpen.toggle() } }
+            }
+            .disabled(menuOpen)
+        }
+        .defaultFocus($focused, Item.channels)
+        .onExitCommand {
+            if menuOpen { withAnimation(Theme.Motion.panel) { menuOpen = false } } else { controller.panel = .none }
+        }
+    }
+
+    private var isFavorite: Bool {
+        controller.displayedChannel.map { app.isFavorite($0) } ?? false
+    }
+
+    private func label(for item: Item?) -> String {
+        switch item {
+        case .channels: return "Chaînes"
+        case .programmes: return "Programmes et replay"
+        case .audio: return "Audio et informations"
+        case .favorite: return isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"
+        case .fill: return controller.fillsScreen ? "Image ajustée" : "Image plein écran"
+        case .more: return "Plus"
+        case nil: return " "
+        }
+    }
+
+    private func button(_ item: Item, _ symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: symbol) }
+            .buttonStyle(RoundIconButtonStyle())
+            .focused($focused, equals: item)
+    }
+}
+
+/// Menu flottant « Plus ».
+private struct MoreMenu: View {
+    let controller: PlaybackController
+    let close: () -> Void
+    @FocusState private var first: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            row("Recharger la chaîne", "arrow.clockwise") { controller.reloadCurrent() }
+                .focused($first)
+            row("Chaîne précédente", "arrow.uturn.backward") { controller.recallPreviousChannel() }
+            row("Fermer le menu", "xmark") {}
+        }
+        .padding(12)
+        .frame(width: 560)
+        .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(.ultraThinMaterial))
+        .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Theme.Palette.night.opacity(0.55)))
+        .onAppear { first = true }
+    }
+
+    private func row(_ title: String, _ symbol: String, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+            close()
+        } label: {
+            HStack {
+                Text(title).font(Theme.Typeface.label(24)).primaryText()
+                Spacer()
+                Image(systemName: symbol).font(.system(size: 22, weight: .semibold)).secondaryText()
+            }
+        }
+        .buttonStyle(GlassRowButtonStyle(horizontalPadding: 22, verticalPadding: 14))
     }
 }
 
 // MARK: - Panneau des chaînes (mini-guide)
+
+private struct GlassPanel<Content: View>: View {
+    let edge: HorizontalEdge
+    let width: CGFloat
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(spacing: 0) {
+            if edge == .trailing { Spacer() }
+            content
+                .padding(.vertical, Theme.Metrics.safeVertical)
+                .padding(.horizontal, 36)
+                .frame(width: width)
+                .frame(maxHeight: .infinity)
+                .background(.ultraThinMaterial)
+                .background(Theme.Palette.night.opacity(0.55))
+            if edge == .leading { Spacer() }
+        }
+        .ignoresSafeArea()
+    }
+}
 
 private struct ChannelPanel: View {
     let app: AppModel
@@ -196,24 +348,31 @@ private struct ChannelPanel: View {
 
     var body: some View {
         let channels = app.channels(in: controller.zapContext)
-        HStack(spacing: 0) {
+        GlassPanel(edge: .leading, width: 900) {
             VStack(alignment: .leading, spacing: 16) {
-                Text(title).font(Theme.Typeface.title(34)).padding(.leading, 24)
+                HStack(spacing: 10) {
+                    Text(title).font(Theme.Typeface.label(28)).foregroundStyle(Theme.Palette.textPrimary)
+                    Image(systemName: "chevron.right").font(.system(size: 20, weight: .bold)).foregroundStyle(Theme.Palette.textTertiary)
+                }
+                .padding(.leading, 14)
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(spacing: 6) {
+                        LazyVStack(spacing: 8) {
                             ForEach(channels) { channel in
                                 Button { controller.playLive(channel.id); controller.panel = .none } label: {
-                                    ChannelPanelRow(app: app, channel: channel, isCurrent: channel.id == controller.displayedChannel)
+                                    ChannelRowContent(channel: channel, isCurrent: channel.id == controller.displayedChannel,
+                                                      logoSize: CGSize(width: 120, height: 68))
                                 }
-                                .buttonStyle(MinuitRowButtonStyle())
+                                .buttonStyle(GlassRowButtonStyle(horizontalPadding: 12, verticalPadding: 8))
                                 .focused($focused, equals: channel.id)
                                 .id(channel.id)
                                 .onAppear { app.epg.ensureFresh([channel.id]) }
                             }
                         }
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 10)
                     }
+                    .scrollClipDisabled()
                     .onAppear {
                         if let current = controller.displayedChannel {
                             proxy.scrollTo(current, anchor: .center)
@@ -222,11 +381,6 @@ private struct ChannelPanel: View {
                     }
                 }
             }
-            .padding(.vertical, Theme.Metrics.safeVertical)
-            .padding(.leading, Theme.Metrics.safeHorizontal - 24)
-            .frame(width: 820)
-            .background(Theme.Palette.scrimLeading.ignoresSafeArea())
-            Spacer()
         }
         .onExitCommand { controller.panel = .none }
     }
@@ -241,30 +395,6 @@ private struct ChannelPanel: View {
     }
 }
 
-private struct ChannelPanelRow: View {
-    let app: AppModel
-    let channel: Channel
-    let isCurrent: Bool
-
-    var body: some View {
-        let (current, _) = app.epg.nowNext(channel.id)
-        HStack(spacing: 20) {
-            ChannelLogoView(channel: channel, size: CGSize(width: 96, height: 58))
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(channel.name).font(Theme.Typeface.label(26)).lineLimit(1)
-                    if isCurrent { Circle().fill(Theme.Palette.ember).frame(width: 10, height: 10) }
-                }
-                if let current {
-                    Text(current.title).font(Theme.Typeface.body(22)).foregroundStyle(Theme.Palette.textSecondary).lineLimit(1)
-                    ProgressLine(progress: current.progress(at: Date()), height: 3).frame(width: 360)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-    }
-}
-
 // MARK: - Panneau des programmes (avant / après, replay)
 
 private struct ProgrammePanel: View {
@@ -273,29 +403,22 @@ private struct ProgrammePanel: View {
     @FocusState private var focused: String?
 
     var body: some View {
-        HStack(spacing: 0) {
-            Spacer()
+        GlassPanel(edge: .trailing, width: 940) {
             VStack(alignment: .leading, spacing: 16) {
                 if let id = controller.displayedChannel, let channel = app.library.channel(id) {
-                    HStack {
-                        Text(channel.name).font(Theme.Typeface.title(34))
-                        Spacer()
-                        Button { controller.panel = .tracks } label: {
-                            Label("Audio et infos", systemImage: "waveform").font(Theme.Typeface.caption())
+                    HStack(spacing: 18) {
+                        ChannelLogoView(channel: channel, size: CGSize(width: 110, height: 62))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(channel.name).font(Theme.Typeface.label(28)).foregroundStyle(Theme.Palette.textPrimary)
+                            Text(channel.hasAnnouncedArchive ? "Replay annoncé sur \(channel.archive?.days ?? 0) jours" : "Pas de replay annoncé")
+                                .font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.textSecondary)
                         }
-                        .buttonStyle(MinuitRowButtonStyle())
-                        .frame(width: 280)
                     }
-                    .padding(.leading, 24)
+                    .padding(.leading, 14)
                     list(for: channel)
                         .task { await app.epg.loadDetailed(channel.id) }
                 }
             }
-            .padding(.vertical, Theme.Metrics.safeVertical)
-            .padding(.trailing, Theme.Metrics.safeHorizontal - 24)
-            .frame(width: 900)
-            .background(LinearGradient(colors: [Theme.Palette.night.opacity(0), Theme.Palette.night.opacity(0.96)],
-                                       startPoint: .leading, endPoint: .trailing).ignoresSafeArea())
         }
         .onExitCommand { controller.panel = .none }
     }
@@ -308,10 +431,10 @@ private struct ProgrammePanel: View {
         let currentID = programmes.first { $0.isAiring(at: now) }?.id
         return ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 4) {
+                LazyVStack(alignment: .leading, spacing: 8) {
                     if programmes.isEmpty {
                         Text("Aucun programme communiqué pour cette chaîne.")
-                            .font(Theme.Typeface.body()).foregroundStyle(Theme.Palette.textSecondary).padding(24)
+                            .font(Theme.Typeface.body(24)).foregroundStyle(Theme.Palette.textSecondary).padding(24)
                     }
                     ForEach(programmes) { programme in
                         let availability = CatchupEvaluator.evaluate(programme: programme, channel: channel,
@@ -326,12 +449,14 @@ private struct ProgrammePanel: View {
                         } label: {
                             ProgrammeRow(programme: programme, availability: availability, now: now)
                         }
-                        .buttonStyle(MinuitRowButtonStyle())
+                        .buttonStyle(GlassRowButtonStyle(horizontalPadding: 20, verticalPadding: 12))
                         .focused($focused, equals: programme.id)
                         .id(programme.id)
                     }
                 }
+                .padding(10)
             }
+            .scrollClipDisabled()
             .onAppear {
                 if let currentID {
                     proxy.scrollTo(currentID, anchor: .center)
@@ -348,12 +473,13 @@ struct ProgrammeRow: View {
     let now: Date
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 20) {
-            Text(programme.start.clockText).font(Theme.Typeface.time(24)).foregroundStyle(Theme.Palette.textSecondary)
-                .frame(width: 90, alignment: .leading)
+        let dimmed = programme.hasEnded(at: now) && availability.window == nil
+        HStack(alignment: .center, spacing: 20) {
+            Text(programme.start.clockText).font(Theme.Typeface.time(23)).secondaryText()
+                .frame(width: 84, alignment: .leading)
             VStack(alignment: .leading, spacing: 6) {
-                Text(programme.title).font(Theme.Typeface.title(28)).lineLimit(1)
-                    .foregroundStyle(programme.hasEnded(at: now) && availability.window == nil ? Theme.Palette.textTertiary : Theme.Palette.textPrimary)
+                Text(programme.title).font(Theme.Typeface.programme(26)).lineLimit(1)
+                    .modifier(DimmableText(dimmed: dimmed))
                 if programme.isAiring(at: now) {
                     ProgressLine(progress: programme.progress(at: now), height: 3).frame(width: 300)
                 }
@@ -366,19 +492,25 @@ struct ProgrammeRow: View {
     @ViewBuilder private var badge: some View {
         switch availability {
         case .startOver:
-            Label("Début", systemImage: "backward.end.fill").font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.archive)
+            MetaTag(text: "Depuis le début", systemImage: "backward.end.fill")
         case .available:
-            Label("Replay", systemImage: "play.circle").font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.archive)
+            MetaTag(text: "Replay", systemImage: "play.fill")
         default:
-            EmptyView()
+            if programme.isAiring(at: now) { MetaTag(text: "En cours") }
         }
+    }
+}
+
+private struct DimmableText: ViewModifier {
+    let dimmed: Bool
+    func body(content: Content) -> some View {
+        if dimmed { content.tertiaryText() } else { content.primaryText() }
     }
 }
 
 // MARK: - Transport (replay)
 
 private struct TransportPanel: View {
-    let app: AppModel
     let controller: PlaybackController
     @FocusState private var focus: Int?
 
@@ -387,33 +519,32 @@ private struct TransportPanel: View {
             Spacer()
             if let archive = controller.archive {
                 let length = archive.original.programmeEnd.timeIntervalSince(archive.original.programmeStart)
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 22) {
                     HStack(spacing: 16) {
                         StatusBadge(kind: archive.original.isStartOver ? .startOver : .replay)
-                        Text(archive.original.title).font(Theme.Typeface.display(42)).lineLimit(1)
+                        Text(archive.original.title).font(Theme.Typeface.programme(42)).lineLimit(1)
+                            .foregroundStyle(Theme.Palette.textPrimary)
                     }
-                    HStack(spacing: 16) {
+                    HStack(spacing: 18) {
                         Text(Self.format(controller.archivePosition)).font(Theme.Typeface.time())
                         ProgressLine(progress: length > 0 ? controller.archivePosition / length : 0, tint: Theme.Palette.archive, height: 6)
                         Text(Self.format(length)).font(Theme.Typeface.time())
                     }
                     .foregroundStyle(Theme.Palette.textSecondary)
-                    HStack(spacing: 24) {
-                        transportButton(0, "backward.end.fill", "Début") { controller.restartArchiveFromBeginning() }
-                        transportButton(1, "gobackward.5", "−5 min") { controller.seekArchive(by: -300) }
-                        transportButton(2, "gobackward.30", "−30 s") { controller.seekArchive(by: -30) }
-                        transportButton(3, controller.isPaused ? "play.fill" : "pause.fill", controller.isPaused ? "Lecture" : "Pause") {
-                            controller.togglePlayPause()
-                        }
-                        transportButton(4, "goforward.30", "+30 s") { controller.seekArchive(by: 30) }
-                        transportButton(5, "goforward.5", "+5 min") { controller.seekArchive(by: 300) }
+                    HStack(spacing: 22) {
+                        round(0, "backward.end.fill") { controller.restartArchiveFromBeginning() }
+                        round(1, "gobackward.5") { controller.seekArchive(by: -300) }
+                        round(2, "gobackward.30") { controller.seekArchive(by: -30) }
+                        round(3, controller.isPaused ? "play.fill" : "pause.fill") { controller.togglePlayPause() }
+                        round(4, "goforward.30") { controller.seekArchive(by: 30) }
+                        round(5, "goforward.5") { controller.seekArchive(by: 300) }
                         Spacer()
                         Button { controller.returnToLive() } label: {
                             Label("Revenir au direct", systemImage: "dot.radiowaves.left.and.right")
-                                .font(Theme.Typeface.label())
-                                .padding(.horizontal, 20).padding(.vertical, 12)
+                                .font(Theme.Typeface.label(24)).primaryText()
                         }
-                        .buttonStyle(MinuitCardButtonStyle(cornerRadius: 30))
+                        .buttonStyle(GlassRowButtonStyle(cornerRadius: 40, horizontalPadding: 30, verticalPadding: 16))
+                        .fixedSize()
                         .focused($focus, equals: 9)
                     }
                     if archive.format == .mpegts {
@@ -422,24 +553,20 @@ private struct TransportPanel: View {
                     }
                 }
                 .padding(.horizontal, Theme.Metrics.safeHorizontal)
-                .padding(.vertical, 40)
+                .padding(.bottom, Theme.Metrics.safeVertical)
+                .padding(.top, 120)
                 .background(Theme.Palette.scrimBottom.ignoresSafeArea())
             }
         }
+        .ignoresSafeArea()
         .onAppear { focus = 3 }
         .onExitCommand { controller.panel = .none }
     }
 
-    private func transportButton(_ id: Int, _ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: symbol).font(.system(size: 30, weight: .medium))
-                Text(label).font(Theme.Typeface.caption(18))
-            }
-            .frame(width: 120, height: 96)
-        }
-        .buttonStyle(MinuitCardButtonStyle())
-        .focused($focus, equals: id)
+    private func round(_ id: Int, _ symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: symbol) }
+            .buttonStyle(RoundIconButtonStyle(diameter: 84))
+            .focused($focus, equals: id)
     }
 
     static func format(_ seconds: TimeInterval) -> String {
@@ -449,33 +576,45 @@ private struct TransportPanel: View {
     }
 }
 
-// MARK: - Pistes audio
+// MARK: - Pistes audio et informations
 
 private struct TracksPanel: View {
     let controller: PlaybackController
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Pistes audio").font(Theme.Typeface.title(34))
-            let tracks = controller.audioTracks
-            if tracks.isEmpty {
-                Text("Une seule piste disponible.").foregroundStyle(Theme.Palette.textSecondary)
-            }
-            ForEach(tracks) { track in
-                Button { controller.selectAudioTrack(track.id); controller.panel = .none } label: {
-                    HStack {
-                        Text(track.title)
-                        Spacer()
-                        if track.isSelected { Image(systemName: "checkmark") }
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Audio").sectionHeader().padding(.leading, 22)
+                    let tracks = controller.audioTracks
+                    if tracks.isEmpty {
+                        Text("Une seule piste disponible.").font(Theme.Typeface.body(24))
+                            .foregroundStyle(Theme.Palette.textSecondary).padding(.leading, 22)
                     }
+                    ForEach(tracks) { track in
+                        Button { controller.selectAudioTrack(track.id); controller.panel = .none } label: {
+                            HStack {
+                                Text(track.title).font(Theme.Typeface.label(24)).primaryText()
+                                Spacer()
+                                if track.isSelected { Image(systemName: "checkmark").primaryText() }
+                            }
+                        }
+                        .buttonStyle(GlassRowButtonStyle(horizontalPadding: 22, verticalPadding: 14))
+                    }
+                    Text("Informations").sectionHeader().padding(.leading, 22).padding(.top, 14)
+                    Text(controller.technicalSummary).font(Theme.Typeface.caption(20))
+                        .foregroundStyle(Theme.Palette.textSecondary).padding(.horizontal, 22)
                 }
-                .buttonStyle(MinuitRowButtonStyle())
+                .padding(18)
+                .frame(width: 720)
+                .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(.ultraThinMaterial))
+                .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Theme.Palette.night.opacity(0.55)))
             }
-            Text(controller.technicalSummary).font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textTertiary)
         }
-        .padding(48)
-        .frame(width: 900)
-        .background(RoundedRectangle(cornerRadius: Theme.Metrics.corner).fill(Theme.Palette.night.opacity(0.94)))
+        .padding(.horizontal, Theme.Metrics.safeHorizontal)
+        .padding(.bottom, Theme.Metrics.safeVertical + 120)
         .onExitCommand { controller.panel = .none }
     }
 }

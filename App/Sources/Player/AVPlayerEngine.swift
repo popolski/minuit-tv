@@ -177,6 +177,11 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
         return .unknown("\(error.domain) \(error.code)")
     }
 
+    var fillsScreen: Bool {
+        get { view.playerLayer.videoGravity == .resizeAspectFill }
+        set { view.playerLayer.videoGravity = newValue ? .resizeAspectFill : .resizeAspect }
+    }
+
     func play() { player?.play() }
     func pause() { player?.pause() }
 

@@ -266,13 +266,13 @@ struct GuideScreen: View {
             HStack(spacing: 24) {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     Text(DayLabel.label(for: context.date, relativeTo: context.date, timeZone: .current))
-                        .font(Theme.Typeface.title(36))
+                        .font(Theme.Typeface.title(36)).foregroundStyle(Theme.Palette.textPrimary)
                     Text(context.date.clockText).font(Theme.Typeface.time(30)).foregroundStyle(Theme.Palette.textSecondary)
                 }
                 Spacer()
-                Button("Plus tôt") { proxy.controller?.shiftWindow(byHours: -6) }
-                Button("Maintenant") { proxy.controller?.jumpToNow() }
-                Button("Plus tard") { proxy.controller?.shiftWindow(byHours: 6) }
+                guideButton("Plus tôt", "chevron.left") { proxy.controller?.shiftWindow(byHours: -6) }
+                guideButton("Maintenant", "dot.radiowaves.left.and.right") { proxy.controller?.jumpToNow() }
+                guideButton("Plus tard", "chevron.right") { proxy.controller?.shiftWindow(byHours: 6) }
             }
             .font(Theme.Typeface.label(24))
             .padding(.horizontal, Theme.Metrics.safeHorizontal)
@@ -299,6 +299,14 @@ struct GuideScreen: View {
             }
         }
     }
+}
+
+private func guideButton(_ title: String, _ symbol: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        Label(title, systemImage: symbol).font(Theme.Typeface.label(22)).primaryText()
+    }
+    .buttonStyle(GlassRowButtonStyle(cornerRadius: 30, horizontalPadding: 22, verticalPadding: 10))
+    .fixedSize()
 }
 
 @MainActor

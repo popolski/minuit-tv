@@ -30,7 +30,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
 État au 2 novembre 2026 :
-- **79 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
+- **82 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
 - **Application tvOS compilée** par la CI (image `xcode-27`, Xcode 27.1), sans avertissement
   dans le code de Minuit ; IPA vérifiée (arm64, tvOS, frameworks FFmpeg) — Release `build-3`.
 - **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur

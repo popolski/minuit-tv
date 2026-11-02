@@ -40,9 +40,13 @@ struct MinuitApp: App {
 @Observable
 final class AppRouter {
     var isPlayerPresented = false
-    var selectedTab: Tab = .home
+    var selectedTab: Tab = .live
+    /// Couleur d'ambiance du fond (halo), suit la chaîne focalisée.
+    var ambient: Color = Theme.Palette.moon
+    /// Liste affichée dans l'écran Direct (mémorisée entre les onglets).
+    var liveContext: ChannelListContext = .all
 
-    enum Tab: Hashable { case home, guide, channels, favorites, settings }
+    enum Tab: Hashable { case search, live, guide, settings }
 
     func watch(_ channel: ChannelID, context: ChannelListContext, app: AppModel) {
         var list = app.channels(in: context).map(\.id)

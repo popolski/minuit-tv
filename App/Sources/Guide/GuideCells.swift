@@ -48,32 +48,43 @@ private struct ProgrammeCellContent: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 if model.isNow { Circle().fill(Theme.Palette.ember).frame(width: 9, height: 9) }
-                Text(model.timeText).font(Theme.Typeface.time(19)).foregroundStyle(Theme.Palette.textSecondary)
+                Text(model.timeText).font(Theme.Typeface.time(19))
+                    .foregroundStyle(focused ? Theme.Palette.onFocusSecondary : Theme.Palette.textSecondary)
                 if model.hasReplay {
-                    Image(systemName: "clock.arrow.circlepath").font(.system(size: 17)).foregroundStyle(Theme.Palette.archive)
+                    Image(systemName: "clock.arrow.circlepath").font(.system(size: 17))
+                        .foregroundStyle(focused ? Theme.Palette.onFocus : Theme.Palette.archive)
                 }
             }
             Text(model.title)
-                .font(model.isGap ? Theme.Typeface.body(22) : Theme.Typeface.title(24))
-                .foregroundStyle(model.isGap || (model.isPast && !model.hasReplay) ? Theme.Palette.textTertiary : Theme.Palette.textPrimary)
+                .font(model.isGap ? Theme.Typeface.body(22) : Theme.Typeface.programme(23))
+                .foregroundStyle(titleColor)
                 .lineLimit(2)
             Spacer(minLength: 0)
             if model.isNow {
                 ProgressLine(progress: model.progress, height: 3)
+                    .environment(\.onFocusPill, focused)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(focused ? Theme.Palette.surfaceFocused : (model.isNow ? Theme.Palette.surface : Theme.Palette.surface.opacity(model.isGap ? 0.35 : 0.7)))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(fill)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(focused ? Theme.Palette.moon : Theme.Palette.stroke, lineWidth: focused ? 3 : 1)
-        )
-        .shadow(color: focused ? Theme.Palette.moon.opacity(0.3) : .clear, radius: 18, y: 6)
+        .shadow(color: focused ? Color.black.opacity(0.35) : .clear, radius: 16, y: 6)
+    }
+
+    private var titleColor: Color {
+        if focused { return Theme.Palette.onFocus }
+        if model.isGap || (model.isPast && !model.hasReplay) { return Theme.Palette.textTertiary }
+        return Theme.Palette.textPrimary
+    }
+
+    private var fill: Color {
+        if focused { return Theme.Palette.focusFill }
+        if model.isNow { return Color.white.opacity(0.16) }
+        return model.isGap ? Color.white.opacity(0.04) : Theme.Palette.glass
     }
 }
 
@@ -100,7 +111,7 @@ final class ChannelHeaderView: UICollectionReusableView {
             }
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Theme.Palette.night.opacity(0.97))
+            .background(Theme.Palette.night.opacity(0.9))
         }
         .margins(.all, 0)
         .makeContentView()

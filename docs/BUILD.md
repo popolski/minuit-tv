@@ -31,7 +31,7 @@ Un seul workflow, `.github/workflows/build.yml`, déclenché à chaque `push` (b
 
 | Tâche | Runner | Rôle |
 |---|---|---|
-| `core-tests` | Linux | 79 tests du cœur + vérifications statiques |
+| `core-tests` | Linux | 82 tests du cœur + vérifications statiques |
 | `app` | macOS `xcode-27` (Xcode 27.1) | compilation tvOS, IPA non signée, vérification de l'IPA (`scripts/verify-ipa.sh`) |
 | `release` | Linux | sur `main` uniquement : publication de l'IPA dans une **Release GitHub** `build-N` |
 

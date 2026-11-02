@@ -55,6 +55,9 @@ protocol PlaybackEngine: AnyObject {
     func stop()
     func healthSample(at time: TimeInterval, wantsToPlay: Bool) -> HealthSample
 
+    /// Recadrage plein écran (aspect fill) plutôt qu'ajustement (aspect fit).
+    var fillsScreen: Bool { get set }
+
     var audioTracks: [EngineTrack] { get }
     func selectAudioTrack(id: Int)
     /// Résumé technique pour l'écran de diagnostic (codec, résolution, HDR…).
