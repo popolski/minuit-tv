@@ -160,10 +160,10 @@ private struct NavSegmentStyle: ButtonStyle {
     let isSelected: Bool
 
     func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration, isSelected: isSelected)
+        StyledLabel(configuration: configuration, isSelected: isSelected)
     }
 
-    private struct Body: View {
+    private struct StyledLabel: View {
         let configuration: ButtonStyleConfiguration
         let isSelected: Bool
         @Environment(\.isFocused) private var isFocused

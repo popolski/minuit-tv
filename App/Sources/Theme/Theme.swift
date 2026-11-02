@@ -124,11 +124,11 @@ struct GlassRowButtonStyle: ButtonStyle {
     var verticalPadding: CGFloat = 12
 
     func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration, isSelected: isSelected, cornerRadius: cornerRadius,
+        StyledLabel(configuration: configuration, isSelected: isSelected, cornerRadius: cornerRadius,
              horizontalPadding: horizontalPadding, verticalPadding: verticalPadding)
     }
 
-    private struct Body: View {
+    private struct StyledLabel: View {
         let configuration: ButtonStyleConfiguration
         let isSelected: Bool
         let cornerRadius: CGFloat
@@ -159,10 +159,10 @@ struct SidebarButtonStyle: ButtonStyle {
     var isSelected = false
 
     func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration, isSelected: isSelected)
+        StyledLabel(configuration: configuration, isSelected: isSelected)
     }
 
-    private struct Body: View {
+    private struct StyledLabel: View {
         let configuration: ButtonStyleConfiguration
         let isSelected: Bool
         @Environment(\.isFocused) private var isFocused
@@ -188,10 +188,10 @@ struct RoundIconButtonStyle: ButtonStyle {
     var diameter: CGFloat = 76
 
     func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration, diameter: diameter)
+        StyledLabel(configuration: configuration, diameter: diameter)
     }
 
-    private struct Body: View {
+    private struct StyledLabel: View {
         let configuration: ButtonStyleConfiguration
         let diameter: CGFloat
         @Environment(\.isFocused) private var isFocused
