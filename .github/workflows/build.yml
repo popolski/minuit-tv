@@ -32,6 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: swift test
+        shell: bash
         run: |
           set -o pipefail
           swift test --parallel 2>&1 | tee core-tests.log
