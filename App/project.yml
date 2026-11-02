@@ -1,0 +1,68 @@
+# Projet Xcode généré par XcodeGen sur le runner macOS (aucun .xcodeproj versionné).
+name: Minuit
+options:
+  bundleIdPrefix: app.minuit
+  deploymentTarget:
+    tvOS: "18.0"
+  createIntermediateGroups: true
+  developmentLanguage: fr
+
+packages:
+  MinuitCore:
+    path: ..
+  AetherEngine:
+    url: https://github.com/superuser404notfound/AetherEngine
+    # Version figée : le projet publie très souvent ; toute montée de version est un choix explicite.
+    exactVersion: 7.54.0
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  Minuit:
+    type: application
+    platform: tvOS
+    sources:
+      - path: Sources
+      - path: Resources
+        excludes: ["Info.plist"]
+    dependencies:
+      - package: MinuitCore
+      - package: AetherEngine
+    info:
+      path: Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Minuit
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: fr
+        UIRequiredDeviceCapabilities: [arm64]
+        UIUserInterfaceStyle: Dark
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIAppSupportsHDR: true
+        # Politique explicite : les serveurs Xtream sont saisis par l'utilisateur et très
+        # majoritairement en HTTP. ATS ne peut pas être restreint à des domaines inconnus.
+        # Compensation : préférence HTTPS automatique, réglage « Exiger HTTPS », aucune
+        # journalisation des URL non masquées.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+          NSAllowsArbitraryLoadsForMedia: true
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.minuit.tv
+        PRODUCT_NAME: Minuit
+        TARGETED_DEVICE_FAMILY: "3"
+        SWIFT_VERSION: "5.0"
+        SWIFT_STRICT_CONCURRENCY: targeted
+        ASSETCATALOG_COMPILER_APPICON_NAME: App Icon & Top Shelf Image
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+        DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+        # IPA non signée : la signature est faite par atvloadly (Sideloader) avec votre identifiant Apple.
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""

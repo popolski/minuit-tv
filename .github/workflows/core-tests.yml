@@ -1,0 +1,26 @@
+# Tests du cœur métier sur runner Linux (≈ 0,006 $/min en dépôt privé, gratuit en dépôt public).
+# Ne compile rien pour tvOS. Déclenché uniquement si le cœur change.
+name: Tests du cœur (Linux)
+
+on:
+  push:
+    paths: ["Sources/**", "Tests/**", "Package.swift", ".github/workflows/core-tests.yml"]
+  pull_request:
+    paths: ["Sources/**", "Tests/**", "Package.swift"]
+  workflow_dispatch:
+
+concurrency:
+  group: core-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: swift:6.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests
+        run: swift test --parallel
+      - name: Vérifications statiques
+        run: sh scripts/static-checks.sh

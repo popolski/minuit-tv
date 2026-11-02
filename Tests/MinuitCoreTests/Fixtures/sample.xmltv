@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tv SYSTEM "xmltv.dtd">
+<tv generator-info-name="test">
+  <channel id="TF1.fr"><display-name>TF1</display-name><display-name lang="fr">TF1 HD</display-name><icon src="http://logos.example/tf1.png"/></channel>
+  <channel id="France2.fr"><display-name>France 2</display-name></channel>
+  <channel id="arte.fr"><display-name>Arte</display-name></channel>
+  <programme start="20261102130000 +0100" stop="20261102134500 +0100" channel="TF1.fr">
+    <title lang="en">The 1pm News</title><title lang="fr">Le Journal de 13h</title>
+    <sub-title>Édition du lundi</sub-title>
+    <desc lang="fr"><![CDATA[Toute l'actualité & la météo.]]></desc>
+    <category lang="fr">Information</category>
+    <episode-num system="xmltv_ns">0.12.</episode-num>
+    <icon src="http://img.example/jt.jpg"/>
+  </programme>
+  <programme start="20261102134500 +0100" stop="20261102143500 +0100" channel="TF1.fr"><title>Les Feux de l'amour</title></programme>
+  <programme start="20261102140000+0000" channel="France2.fr"><title>Sans fin indiquée</title></programme>
+  <programme start="20261102150000 +0000" stop="20261102160000 +0000" channel="France2.fr"><title>Programme suivant</title></programme>
+  <programme start="20261102200000 +0100" stop="20261102220000 +0100" channel="arte.fr"><title>Documentaire</title></programme>
+  <programme start="20261110200000 +0100" stop="20261110220000 +0100" channel="TF1.fr"><title>Trop loin</title></programme>
+  <programme start="garbage" stop="20261110220000 +0100" channel="TF1.fr"><title>Invalide</title></programme>
+  <programme start="20261102230000" stop="20261103000000" channel="Unknown.ch"><title>Inconnu</title></programme>
+</tv>

@@ -1,0 +1,10 @@
+[
+ {"num":1,"name":"FR: TF1 HD","stream_type":"live","stream_id":101,"stream_icon":"http://logos.example/tf1.png","epg_channel_id":"TF1.fr","added":"1700000000","category_id":"1","category_ids":[1],"custom_sid":"","tv_archive":1,"direct_source":"","tv_archive_duration":"7"},
+ {"num":"2","name":"FR: France 2","stream_type":"live","stream_id":"102","stream_icon":"","epg_channel_id":"France2.fr","category_id":"1","tv_archive":"0","tv_archive_duration":0},
+ {"num":3,"name":"FR: Arte","stream_type":"live","stream_id":103,"stream_icon":null,"epg_channel_id":null,"category_id":"1","tv_archive":1,"tv_archive_duration":"0"},
+ {"num":4,"name":"beIN SPORTS 1 ᴴᴰ","stream_type":"live","stream_id":104,"epg_channel_id":"beinsports1.fr","category_id":"2","category_ids":["2","1"],"tv_archive":true,"tv_archive_duration":3},
+ {"num":5,"name":"Film VOD égaré","stream_type":"movie","stream_id":900,"category_id":"1"},
+ {"num":6,"name":"Doublon TF1","stream_type":"live","stream_id":101,"category_id":"1"},
+ {"num":7,"name":"Sans identifiant","stream_type":"live","category_id":"1"},
+ {"num":8,"name":"Chaîne adulte","stream_type":"live","stream_id":105,"category_id":"9","is_adult":"1"}
+]

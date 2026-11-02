@@ -1,0 +1,12 @@
+# Usage sur le NAS (Container Manager > Projet) ou en ligne de commande :
+#   docker compose -f docker/docker-compose.yml run --rm tests
+services:
+  tests:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    # Montage du dépôt : relance des tests sans reconstruire l'image.
+    volumes:
+      - ..:/src
+    working_dir: /src
+    command: ["sh", "-c", "swift test --parallel && sh scripts/static-checks.sh"]

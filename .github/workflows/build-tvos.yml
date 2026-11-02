@@ -1,0 +1,98 @@
+# Compilation tvOS et production d'une IPA non signée pour atvloadly.
+#
+# COÛT : runner macOS facturé 0,062 $/min en dépôt privé (inclus : 12 $/mois sur l'offre
+# gratuite, soit ≈ 190 min macOS) ; gratuit en dépôt public. Un build dure ≈ 8 à 15 min.
+# => Déclenchement MANUEL uniquement (onglet Actions > « Build tvOS » > Run workflow).
+name: Build tvOS (IPA non signée)
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Image macOS (macos-26 : Xcode 26.x stable ; xcode-27 : préversion)"
+        type: choice
+        options: [macos-26, xcode-27]
+        default: macos-26
+      xcode:
+        description: "Version d'Xcode (dossier /Applications/Xcode_<version>.app)"
+        type: string
+        default: "26.6"
+      configuration:
+        type: choice
+        options: [Release, Debug]
+        default: Release
+
+concurrency:
+  group: build-tvos
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 35
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sélection d'Xcode
+        run: |
+          sudo xcode-select -s "/Applications/Xcode_${{ inputs.xcode }}.app"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i appletv
+
+      - name: XcodeGen
+        run: brew install xcodegen && xcodegen --version
+
+      - name: Cache des paquets Swift
+        uses: actions/cache@v4
+        with:
+          path: App/.spm
+          key: spm-${{ inputs.runner }}-${{ inputs.xcode }}-${{ hashFiles('App/project.yml', 'Package.swift') }}
+
+      - name: Génération du projet
+        run: xcodegen generate --spec App/project.yml
+
+      - name: Résolution des dépendances
+        run: |
+          xcodebuild -resolvePackageDependencies -project App/Minuit.xcodeproj -scheme Minuit \
+            -clonedSourcePackagesDirPath App/.spm -skipPackagePluginValidation -skipMacroValidation
+
+      - name: Compilation (appletvos, sans signature)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project App/Minuit.xcodeproj -scheme Minuit \
+            -configuration "${{ inputs.configuration }}" \
+            -sdk appletvos -destination "generic/platform=tvOS" \
+            -derivedDataPath build -clonedSourcePackagesDirPath App/.spm \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            2>&1 | tee build.log | (command -v xcbeautify >/dev/null && xcbeautify --quiet || cat)
+
+      - name: Empaquetage IPA
+        run: |
+          APP="build/Build/Products/${{ inputs.configuration }}-appletvos/Minuit.app"
+          test -d "$APP"
+          echo "Frameworks embarqués :"; ls "$APP/Frameworks" || true
+          plutil -p "$APP/Info.plist" | grep -E "CFBundleIdentifier|CFBundleShortVersionString|MinimumOSVersion"
+          mkdir -p Payload && cp -R "$APP" Payload/
+          zip -qry "Minuit-${{ github.run_number }}-unsigned.ipa" Payload
+          ls -lh *.ipa
+
+      - name: Publication de l'IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Minuit-${{ github.run_number }}-unsigned-ipa
+          path: "*.ipa"
+          retention-days: 14
+          compression-level: 0
+
+      - name: Journal de compilation (en cas d'échec)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.run_number }}
+          path: build.log
+          retention-days: 7

@@ -1,0 +1,1 @@
+{"user_info": {"username": "bob", "auth": true, "status": "Active", "exp_date": null, "is_trial": false, "active_cons": 1, "max_connections": 1, "allowed_output_formats": []}, "server_info": {"url": "panel.local", "port": 80, "https_port": null, "timezone": "GMT+1", "timestamp_now": "1793633400", "time_now": "2026-11-02 16:30:00"}}
