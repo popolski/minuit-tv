@@ -47,7 +47,7 @@ Textes : `#EEF2FA` (principal), `#9AA8C7` (secondaire), `#5F6E8F` (tertiaire).
 
 ## Icône
 
-Croissant de lune (Lune) et point de braise (le direct) sur un ciel nuit avec halo diffus.
+Croissant de lune (Lune) et symbole « lecture » braise sur un ciel nuit avec halo diffus.
 Icône tvOS à deux couches (parallaxe système) et Top Shelf générées par
 `scripts/make_assets.py` ; même dessin dans l'application (`MinuitMark`).
 Variantes étudiées : `docs/icon-concepts/planche-croissant.png` (croissant) et

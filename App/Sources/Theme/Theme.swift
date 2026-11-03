@@ -318,7 +318,7 @@ extension Date {
     }
 }
 
-/// Emblème de Minuit : croissant de lune et point braise (le direct), comme l'icône
+/// Emblème de Minuit : croissant de lune et symbole « lecture » braise, comme l'icône
 /// de l'application (scripts/make_assets.py).
 struct MinuitMark: View {
     var size: CGFloat
@@ -339,12 +339,29 @@ struct MinuitMark: View {
                     }
                     .compositingGroup()
                 )
-            Circle()
+            PlayTriangle()
                 .fill(Theme.Palette.ember)
-                .frame(width: size * 0.15, height: size * 0.15)
+                .frame(width: size * 0.18, height: size * 0.20)
                 .offset(x: r * 0.95, y: r * 0.78)
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
+    }
+}
+
+/// Triangle « lecture » aux coins adoucis.
+struct PlayTriangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let corner = min(rect.width, rect.height) * 0.12
+        let a = CGPoint(x: rect.minX, y: rect.minY)
+        let b = CGPoint(x: rect.minX, y: rect.maxY)
+        let c = CGPoint(x: rect.maxX, y: rect.midY)
+        path.move(to: CGPoint(x: (a.x + c.x) / 2, y: (a.y + c.y) / 2))
+        path.addArc(tangent1End: a, tangent2End: b, radius: corner)
+        path.addArc(tangent1End: b, tangent2End: c, radius: corner)
+        path.addArc(tangent1End: c, tangent2End: a, radius: corner)
+        path.closeSubpath()
+        return path
     }
 }

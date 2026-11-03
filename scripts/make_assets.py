@@ -8,7 +8,7 @@ def dump(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     json.dump(obj, open(path, "w"), indent=2)
 
-NIGHT = (7, 11, 22); RAISED = (14, 26, 52); MOON = (143, 184, 255); EMBER = (255, 138, 91)
+NIGHT = (7, 11, 22); RAISED = (14, 26, 52); MOON = (143, 184, 255); EMBER = (255, 107, 85)
 
 def back(w, h):
     img = Image.new("RGB", (w, h), NIGHT)
@@ -39,9 +39,14 @@ def front(w, h, text=False):
     d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=MOON + (255,))
     off = int(r * 0.52)
     d.ellipse([cx - r + off, cy - r - int(r * 0.18), cx + r + off, cy + r - int(r * 0.18)], fill=(0, 0, 0, 0))
-    er = int(h * s * 0.045)
-    ex, ey = cx + int(r * 0.95), cy + int(r * 0.78)
-    d.ellipse([ex - er, ey - er, ex + er, ey + er], fill=EMBER + (255,))
+    # Symbole « lecture » braise à la place du point (variante B retenue).
+    px, py = cx + r * 0.95, cy + r * 0.78
+    ts = h * s * 0.16
+    pts = [(px - ts * 0.42, py - ts * 0.5), (px - ts * 0.42, py + ts * 0.5), (px + ts * 0.5, py)]
+    tri = Image.new("L", big.size, 0)
+    ImageDraw.Draw(tri).polygon(pts, fill=255)
+    tri = tri.filter(ImageFilter.GaussianBlur(ts * 0.06)).point(lambda v: 255 if v > 128 else 0)
+    big.paste(Image.new("RGBA", big.size, EMBER + (255,)), (0, 0), tri)
     img = big.resize((w, h), Image.LANCZOS)
     return img
 
