@@ -230,6 +230,8 @@ private struct DiagnosticsView: View {
         let stats = app.playback.statistics
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
+                Text("Diagnostics").font(Theme.Typeface.title(44)).foregroundStyle(Theme.Palette.textPrimary)
+                    .padding(.leading, 22).padding(.bottom, 10)
                 if let crash = CrashReporter.lastReport {
                     Text("Dernière fermeture inattendue").sectionHeader().padding(.leading, 22)
                     row(nil, String(crash.prefix(2000)), monospaced: true)
@@ -265,7 +267,7 @@ private struct DiagnosticsView: View {
             .frame(maxWidth: 1500)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Diagnostics")
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear { entries = DiagnosticsLog.shared.snapshot() }
     }
 

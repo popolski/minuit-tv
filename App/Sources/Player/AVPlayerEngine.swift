@@ -168,7 +168,9 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
             return status == 458 || status == 456 ? .connectionLimit : .http(status)
         }
         guard let error else { return .unknown("item failed") }
-        if error.domain == NSURLErrorDomain { return .network }
+        if error.domain == NSURLErrorDomain {
+            return (-1206 ... -1200).contains(error.code) ? .certificateRejected : .network
+        }
         if error.domain == AVFoundationErrorDomain {
             switch AVError.Code(rawValue: error.code) {
             case .fileFormatNotRecognized, .decoderNotFound, .formatUnsupported, .contentIsUnavailable, .failedToParse:

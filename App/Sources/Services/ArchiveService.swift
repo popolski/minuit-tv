@@ -72,6 +72,7 @@ final class ArchiveService {
             return ArchiveProbe.classify(statusCode: response.statusCode, contentType: response.header("Content-Type"),
                                          body: response.body.prefix(ArchiveProbe.probeByteCount))
         } catch {
+            log.log(.warning, "replay", "Sondage : erreur réseau \(error)")
             return .httpError(0)
         }
     }

@@ -65,6 +65,8 @@ public enum PlaybackFailure: Sendable, Equatable {
     case health(HealthVerdict)
     case sourceEnded
     case archiveUnavailable
+    /// Le serveur du flux présente un certificat HTTPS refusé par tvOS.
+    case certificateRejected
     case unknown(String)
 
     public var userMessage: String {
@@ -85,6 +87,7 @@ public enum PlaybackFailure: Sendable, Equatable {
             }
         case .sourceEnded: return "Le flux s'est arrêté."
         case .archiveUnavailable: return "Ce programme n'est pas disponible en replay."
+        case .certificateRejected: return "Le serveur de cette chaîne redirige vers une connexion sécurisée dont le certificat est refusé par l'Apple TV."
         case .unknown: return "Lecture impossible."
         }
     }

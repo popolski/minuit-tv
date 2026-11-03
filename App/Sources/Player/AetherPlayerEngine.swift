@@ -82,6 +82,7 @@ final class AetherPlayerEngine: PlaybackEngine {
     static func classify(_ info: PlaybackErrorInfo?) -> PlaybackFailure {
         guard let info else { return .unknown("aether") }
         switch info.kind {
+        case .sourceCertificateRejected: return .certificateRejected
         case .sourceRateLimited: return .connectionLimit
         case .sourceRefused:
             if let code = info.underlyingCode, (400...599).contains(code) { return .http(code) }

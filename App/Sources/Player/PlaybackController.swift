@@ -265,7 +265,16 @@ final class PlaybackController {
                 return
             } catch {
                 guard let self, gen == self.generation else { return }
-                let failure: PlaybackFailure = (error as? EngineError) == .unsupported ? .unsupportedFormat : .unknown("\(error)")
+                let ns = error as NSError
+                let failure: PlaybackFailure
+                if (error as? EngineError) == .unsupported {
+                    failure = .unsupportedFormat
+                } else if (ns.domain == NSURLErrorDomain && (-1206 ... -1200).contains(ns.code))
+                            || "\(error)".localizedCaseInsensitiveContains("secure connection") {
+                    failure = .certificateRejected
+                } else {
+                    failure = .unknown("\(error)")
+                }
                 self.handle(.failed(failure), generation: gen)
             }
         }
