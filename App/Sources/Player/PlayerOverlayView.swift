@@ -378,11 +378,11 @@ private struct ChannelPanel: View {
                         .padding(.horizontal, 10)
                     }
                     .scrollClipDisabled()
+                    .defaultFocus($focused, controller.displayedChannel)
                     .onAppear {
-                        if let current = controller.displayedChannel {
-                            proxy.scrollTo(current, anchor: .center)
-                            focused = current
-                        }
+                        guard let current = controller.displayedChannel else { return }
+                        proxy.scrollTo(current, anchor: .center)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focused = current }
                     }
                 }
             }
@@ -462,11 +462,12 @@ private struct ProgrammePanel: View {
                 .padding(10)
             }
             .scrollClipDisabled()
+            .defaultFocus($focused, currentID)
             .onAppear {
-                if let currentID {
-                    proxy.scrollTo(currentID, anchor: .center)
-                    focused = currentID
-                }
+                guard let currentID else { return }
+                proxy.scrollTo(currentID, anchor: .center)
+                // Après la mise en place du panneau, sinon le focus n'est pas appliqué.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focused = currentID }
             }
         }
     }

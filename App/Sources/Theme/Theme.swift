@@ -303,9 +303,17 @@ struct MetaTag: View {
     }
 }
 
+private let clockFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "fr_FR")
+    formatter.dateFormat = "HH:mm"
+    return formatter
+}()
+
 extension Date {
-    /// « 20:45 » dans le fuseau de l'appareil.
+    /// « 20:45 » (24 h) dans le fuseau de l'appareil, quelle que soit la langue de l'Apple TV.
     var clockText: String {
-        formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
+        clockFormatter.timeZone = .current
+        return clockFormatter.string(from: self)
     }
 }
