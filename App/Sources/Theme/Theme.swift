@@ -318,32 +318,31 @@ extension Date {
     }
 }
 
-/// Emblème de Minuit : cadran dont les aiguilles se rejoignent sur 12 h, aiguille braise.
-/// Même dessin que l'icône de l'application (scripts/make_assets.py).
+/// Emblème de Minuit : croissant de lune et point braise (le direct), comme l'icône
+/// de l'application (scripts/make_assets.py).
 struct MinuitMark: View {
     var size: CGFloat
 
     var body: some View {
-        let r = size / 2
+        let r = size * 0.40
         ZStack {
-            Circle().strokeBorder(Theme.Palette.textPrimary, lineWidth: max(2, size * 0.075))
-            ForEach(1..<12) { k in
-                let major = k % 3 == 0
-                Capsule()
-                    .fill(Theme.Palette.moon)
-                    .frame(width: max(1.5, size * (major ? 0.05 : 0.028)), height: size * (major ? 0.16 : 0.08))
-                    .offset(y: -r * (major ? 0.78 : 0.82))
-                    .rotationEffect(.degrees(Double(k) * 30))
-            }
-            Capsule()
-                .fill(Theme.Palette.textPrimary)
-                .frame(width: size * 0.11, height: r * 0.55)
-                .offset(y: -r * 0.25)
-            Capsule()
+            Circle()
+                .fill(Theme.Palette.moon)
+                .frame(width: r * 2, height: r * 2)
+                .mask(
+                    ZStack {
+                        Rectangle()
+                        Circle()
+                            .frame(width: r * 2, height: r * 2)
+                            .offset(x: r * 0.52, y: -r * 0.18)
+                            .blendMode(.destinationOut)
+                    }
+                    .compositingGroup()
+                )
+            Circle()
                 .fill(Theme.Palette.ember)
-                .frame(width: size * 0.055, height: r * 0.85)
-                .offset(y: -r * 0.40)
-            Circle().fill(Theme.Palette.ember).frame(width: size * 0.17, height: size * 0.17)
+                .frame(width: size * 0.15, height: size * 0.15)
+                .offset(x: r * 0.95, y: r * 0.78)
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)

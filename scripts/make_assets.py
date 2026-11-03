@@ -8,7 +8,7 @@ def dump(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     json.dump(obj, open(path, "w"), indent=2)
 
-NIGHT = (7, 11, 22); RAISED = (14, 26, 52); MOON = (143, 184, 255); EMBER = (255, 107, 85)
+NIGHT = (7, 11, 22); RAISED = (14, 26, 52); MOON = (143, 184, 255); EMBER = (255, 138, 91)
 
 def back(w, h):
     img = Image.new("RGB", (w, h), NIGHT)
@@ -25,34 +25,25 @@ def back(w, h):
     halo = halo.filter(ImageFilter.GaussianBlur(h * 0.18))
     glow = Image.new("RGB", (w, h), MOON)
     img = Image.composite(glow, img, halo)
+    # horizon discret
+    d = ImageDraw.Draw(img)
+    d.line([(0, int(h * 0.80)), (w, int(h * 0.80))], fill=(40, 58, 100), width=max(1, h // 240))
     return img
 
 def front(w, h, text=False):
-    """Cadran à minuit : couronne lunaire, index, aiguilles superposées sur 12 h, aiguille braise."""
-    s = 4  # suréchantillonnage
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    s = 4  # supersampling
     big = Image.new("RGBA", (w * s, h * s), (0, 0, 0, 0))
     d = ImageDraw.Draw(big)
-    cx, cy = w * s / 2, h * s / 2
-    r = h * s * 0.36
-    ring = max(2, int(r * 0.075))
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(238, 242, 250, 255), width=ring)
-    for k in range(12):
-        ang = math.radians(k * 30)
-        major = k % 3 == 0
-        r1 = r * (0.70 if major else 0.78)
-        r2 = r * 0.86
-        if k == 0:
-            continue  # le 12 est porté par les aiguilles
-        d.line([cx + r1 * math.sin(ang), cy - r1 * math.cos(ang), cx + r2 * math.sin(ang), cy - r2 * math.cos(ang)],
-               fill=MOON + (255,), width=int(r * (0.05 if major else 0.028)))
-    # aiguille des heures (lune) puis des minutes (braise), toutes deux sur 12 h
-    hw = int(r * 0.11)
-    d.rounded_rectangle([cx - hw / 2, cy - r * 0.50, cx + hw / 2, cy + hw / 2], radius=hw / 2, fill=(238, 242, 250, 255))
-    mw = int(r * 0.055)
-    d.rounded_rectangle([cx - mw / 2, cy - r * 0.80, cx + mw / 2, cy + mw / 2], radius=mw / 2, fill=EMBER + (255,))
-    pr = r * 0.085
-    d.ellipse([cx - pr, cy - pr, cx + pr, cy + pr], fill=EMBER + (255,))
-    return big.resize((w, h), Image.LANCZOS)
+    r = int(h * s * 0.30); cx, cy = int(w * s * 0.5), int(h * s * 0.46)
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=MOON + (255,))
+    off = int(r * 0.52)
+    d.ellipse([cx - r + off, cy - r - int(r * 0.18), cx + r + off, cy + r - int(r * 0.18)], fill=(0, 0, 0, 0))
+    er = int(h * s * 0.045)
+    ex, ey = cx + int(r * 0.95), cy + int(r * 0.78)
+    d.ellipse([ex - er, ey - er, ex + er, ey + er], fill=EMBER + (255,))
+    img = big.resize((w, h), Image.LANCZOS)
+    return img
 
 def write_stack(name, sizes):
     stack = os.path.join(root, "App Icon & Top Shelf Image.brandassets", name + ".imagestack")
@@ -77,7 +68,7 @@ def topshelf(name, sizes):
         img.alpha_composite(f, (int(w * 0.08), 0))
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf", int(h * 0.22))
-            ImageDraw.Draw(img).text((int(w * 0.08 + h * 1.36), int(h * 0.36)), "Minuit", font=font, fill=(238, 242, 250, 255))
+            ImageDraw.Draw(img).text((int(w * 0.08 + h * 1.12), int(h * 0.36)), "Minuit", font=font, fill=(238, 242, 250, 255))
         except Exception:
             pass
         fn = f"topshelf{'' if scale == '1x' else '@' + scale}.png"
