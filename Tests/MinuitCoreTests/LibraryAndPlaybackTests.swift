@@ -182,6 +182,16 @@ final class HealthMonitorTests: XCTestCase {
         XCTAssertEqual(verdict, .frozenVideo)
     }
 
+    /// Voie de rendu qui ne fournit pas de cadence (toujours 0) : ce n'est pas une image figée.
+    func testSilentVideoSignalIsNotFrozen() {
+        var monitor = PlaybackHealthMonitor()
+        monitor.reset(at: 0)
+        let verdict = run(&monitor, from: 0, seconds: 30) { t in
+            HealthSample(at: t, clockPosition: t, firstFrameShown: true, videoFrameRate: 0)
+        }
+        XCTAssertEqual(verdict, .healthy, "un signal vidéo jamais actif ne prouve aucun gel")
+    }
+
     func testClockAloneNeverProvesAPicture() {
         var monitor = PlaybackHealthMonitor()
         monitor.reset(at: 0)

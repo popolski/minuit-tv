@@ -91,8 +91,12 @@ public final class URLSessionHTTPClient: HTTPClient {
         configuration.httpCookieStorage = nil
         configuration.urlCache = nil
         #if canImport(Darwin)
+        if trustsInvalidCertificates {
+            // Serveurs de redirection anciens (TLS 1.0/1.1) : refusés par défaut par tvOS.
+            configuration.tlsMinimumSupportedProtocolVersion = .TLSv10
+        }
         self.session = URLSession(configuration: configuration,
-                                  delegate: trustsInvalidCertificates ? PermissiveTrustDelegate() : nil,
+                                  delegate: SessionDelegate(trustsInvalidCertificates: trustsInvalidCertificates),
                                   delegateQueue: nil)
         #else
         self.session = URLSession(configuration: configuration)
@@ -175,17 +179,43 @@ public final class URLSessionHTTPClient: HTTPClient {
 }
 
 #if canImport(Darwin)
-/// Accepte le certificat présenté par le serveur même s'il est refusé par le système.
-/// Utilisé uniquement avec le réglage « Accepter les certificats non vérifiés du fournisseur ».
-final class PermissiveTrustDelegate: NSObject, URLSessionDelegate {
+/// Délégué de session : journalise les redirections et les échecs de connexion sécurisée
+/// (adresse cible masquée par le journal, code TLS précis), et accepte le certificat
+/// présenté si le réglage « Accepter les certificats non vérifiés » est actif.
+final class SessionDelegate: NSObject, URLSessionTaskDelegate {
+    let trustsInvalidCertificates: Bool
+
+    init(trustsInvalidCertificates: Bool) {
+        self.trustsInvalidCertificates = trustsInvalidCertificates
+    }
+
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
                     completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+        guard trustsInvalidCertificates,
+              challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
               let trust = challenge.protectionSpace.serverTrust else {
             completionHandler(.performDefaultHandling, nil)
             return
         }
         completionHandler(.useCredential, URLCredential(trust: trust))
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        if let target = request.url {
+            DiagnosticsLog.shared.log(.info, "réseau",
+                "Redirection \(response.statusCode) vers \(target.scheme ?? "?")://\(target.host ?? "?"):\(target.port.map(String.init) ?? "défaut") — \(target.absoluteString)")
+        }
+        completionHandler(request)
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let error = error as NSError?, error.domain == NSURLErrorDomain,
+              (-1206 ... -1200).contains(error.code) else { return }
+        let stream = error.userInfo["_kCFStreamErrorCodeKey"].map { "\($0)" } ?? "?"
+        let failing = (error.userInfo[NSURLErrorFailingURLErrorKey] as? URL)?.absoluteString ?? "?"
+        DiagnosticsLog.shared.log(.warning, "réseau",
+            "Connexion sécurisée refusée : code \(error.code), TLS \(stream), adresse \(failing)")
     }
 }
 #endif

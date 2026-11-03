@@ -85,6 +85,10 @@ public struct PlaybackHealthMonitor: Sendable {
     private var bufferingSince: TimeInterval?
     private var firstFrameAt: TimeInterval?
     private var audioOnlySince: TimeInterval?
+    /// Le signal vidéo a déjà montré une progression réelle pendant ce chargement.
+    /// Sans cela, un signal muet (non pris en charge par la voie de rendu) ne doit
+    /// jamais être pris pour une image figée.
+    private var videoSignalAlive = false
 
     public init(thresholds: HealthThresholds = HealthThresholds()) {
         self.thresholds = thresholds
@@ -114,7 +118,10 @@ public struct PlaybackHealthMonitor: Sendable {
         } else if let rate = sample.videoFrameRate {
             videoProgressing = rate > 0.5
         }
-        if videoProgressing { lastFrameProgressAt = now }
+        if videoProgressing {
+            lastFrameProgressAt = now
+            videoSignalAlive = true
+        }
 
         if sample.firstFrameShown, firstFrameAt == nil {
             firstFrameAt = now
@@ -156,7 +163,8 @@ public struct PlaybackHealthMonitor: Sendable {
         }
         // Horloge qui avance mais image figée : le cas que l'horloge seule ne détecte pas.
         let hasVideoSignal = sample.lastVideoFrameTime != nil || sample.videoFrameRate != nil
-        if clockAdvancing, hasVideoSignal, let lastFrame = lastFrameProgressAt, now - lastFrame >= thresholds.frozenVideoTimeout {
+        if clockAdvancing, hasVideoSignal, videoSignalAlive,
+           let lastFrame = lastFrameProgressAt, now - lastFrame >= thresholds.frozenVideoTimeout {
             return .frozenVideo
         }
         return .healthy
