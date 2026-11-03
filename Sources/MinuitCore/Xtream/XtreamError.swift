@@ -34,6 +34,17 @@ public enum XtreamError: Error, Sendable, Equatable {
         }
     }
 
+    /// Échec de la liste complète des chaînes que le chargement par catégorie peut contourner :
+    /// réponse coupée, illisible ou refusée par le panneau. Le compte est déjà validé à ce stade,
+    /// donc un 403 vise la liste elle-même. Pas pour un réseau absent ni une limite de requêtes.
+    public var allowsCategoryFallback: Bool {
+        switch self {
+        case .unexpectedResponse, .transport(.timedOut), .transport(.tooLarge), .transport(.other): return true
+        case .http(let status): return status != 429
+        default: return false
+        }
+    }
+
     public var userMessage: String {
         switch self {
         case .invalidServerAddress:

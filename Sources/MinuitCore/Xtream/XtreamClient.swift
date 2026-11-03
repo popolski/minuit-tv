@@ -108,6 +108,55 @@ public struct XtreamClient: Sendable {
         return try Self.decodeChannels(data)
     }
 
+    /// Repli quand la liste complète est refusée ou trop lourde pour le panneau : les chaînes
+    /// catégorie par catégorie, quatre requêtes à la fois. Une catégorie en échec est ignorée ;
+    /// si tout le premier lot échoue, le serveur refuse aussi ce mode et l'on abandonne.
+    public func liveStreams(byCategory categories: [ChannelCategory]) async throws(XtreamError) -> [Channel] {
+        var merged: [Channel] = []
+        var position: [ChannelID: Int] = [:]
+        var firstError: XtreamError?
+        var succeeded = 0
+        for start in stride(from: 0, to: categories.count, by: 4) {
+            let batch = Array(categories[start..<min(start + 4, categories.count)])
+            let results = await withTaskGroup(of: (Int, Result<[Channel], XtreamError>).self) { group in
+                for (index, category) in batch.enumerated() {
+                    group.addTask { (index, await self.capture { () throws(XtreamError) in try await self.liveStreams(category: category.id) }) }
+                }
+                var collected: [(Int, Result<[Channel], XtreamError>)] = []
+                for await item in group { collected.append(item) }
+                return collected.sorted { $0.0 < $1.0 }.map(\.1)
+            }
+            for (category, result) in zip(batch, results) {
+                switch result {
+                case .success(let channels):
+                    succeeded += 1
+                    for var channel in channels {
+                        // La requête par catégorie prouve l'appartenance, même si la fiche l'omet.
+                        if !channel.categoryIDs.contains(category.id) { channel.categoryIDs.append(category.id) }
+                        if let existing = position[channel.id] {
+                            for id in channel.categoryIDs where !merged[existing].categoryIDs.contains(id) {
+                                merged[existing].categoryIDs.append(id)
+                            }
+                        } else {
+                            position[channel.id] = merged.count
+                            merged.append(channel)
+                        }
+                    }
+                case .failure(let error):
+                    firstError = firstError ?? error
+                }
+            }
+            if succeeded == 0 { throw firstError ?? .unexpectedResponse(context: "chaînes") }
+            if Task.isCancelled { throw .transport(.cancelled) }
+        }
+        if succeeded == 0 { throw firstError ?? .unexpectedResponse(context: "chaînes") }
+        return merged
+    }
+
+    private func capture<T>(_ body: () async throws(XtreamError) -> T) async -> Result<T, XtreamError> {
+        do { return .success(try await body()) } catch { return .failure(error) }
+    }
+
     static func decodeChannels(_ data: Data) throws(XtreamError) -> [Channel] {
         guard let list = try? JSONDecoder().decode(LossyArray<LiveStreamDTO>.self, from: data) else {
             throw .unexpectedResponse(context: "chaînes")

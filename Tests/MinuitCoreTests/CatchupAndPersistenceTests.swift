@@ -65,11 +65,27 @@ final class CatchupTests: XCTestCase {
         XCTAssertEqual(ArchiveProbe.classify(statusCode: 200, contentType: "application/vnd.apple.mpegurl", body: playlist), .playable(.hls))
         XCTAssertEqual(ArchiveProbe.classify(statusCode: 200, contentType: nil, body: Data("#EXTM3U\n".utf8)), .notMedia(hint: "playlist vide"))
         XCTAssertEqual(ArchiveProbe.classify(statusCode: 200, contentType: "text/html", body: Data("<html>No archive</html>".utf8)),
-                       .notMedia(hint: "page HTML"))
+                       .providerMessage(hint: "page HTML"))
         XCTAssertEqual(ArchiveProbe.classify(statusCode: 200, contentType: "video/mp2t", body: Data("{\"error\":1}".utf8)),
-                       .notMedia(hint: "réponse JSON"))
+                       .providerMessage(hint: "réponse JSON"))
+        XCTAssertEqual(ArchiveProbe.classify(statusCode: 200, contentType: "text/html; charset=utf-8", body: Data("\u{FEFF}Account expired".utf8)),
+                       .providerMessage(hint: "page HTML"))
         XCTAssertEqual(ArchiveProbe.classify(statusCode: 404, contentType: nil, body: Data()), .httpError(404))
         XCTAssertEqual(ArchiveProbe.classify(statusCode: 200, contentType: "video/mp2t", body: Data()), .empty)
+    }
+
+    func testLiveFailureRefinedByProbe() {
+        let generic = PlaybackFailure.unknown("AVFoundation -11800")
+        XCTAssertEqual(generic.refined(by: .providerMessage(hint: "page HTML")), .providerMessage)
+        XCTAssertEqual(PlaybackFailure.health(.startupTimeout).refined(by: .httpError(403)), .http(403))
+        XCTAssertEqual(PlaybackFailure.network.refined(by: .httpError(458)), .connectionLimit)
+        // Code ambigu (réponse à l'en-tête Range), erreur réseau du sondage, flux sain : inchangé.
+        XCTAssertEqual(generic.refined(by: .httpError(416)), generic)
+        XCTAssertEqual(generic.refined(by: .httpError(0)), generic)
+        XCTAssertEqual(generic.refined(by: .playable(.mpegts)), generic)
+        // Une cause déjà précise n'est pas remplacée.
+        XCTAssertEqual(PlaybackFailure.certificateRejected.refined(by: .providerMessage(hint: "page HTML")), .certificateRejected)
+        XCTAssertFalse(PlaybackFailure.providerMessage.userMessage.contains("http"))
     }
 }
 

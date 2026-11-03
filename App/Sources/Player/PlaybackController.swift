@@ -390,6 +390,26 @@ final class PlaybackController {
         engine?.stop()   // libère la connexion du compte
         phase = .failed(failure.userMessage)
         log.log(.error, "lecture", "Abandon : \(failure) — \(failureDetail ?? "")")
+        if case .live(let channel) = target, mediaOverride == nil, let format = activeAttempt?.format {
+            refineFailure(failure, channel: channel, format: format)
+        }
+    }
+
+    /// Après abandon (moteur déjà arrêté), un sondage de 4 Ko du flux précise la cause :
+    /// page d'erreur du fournisseur à la place de la vidéo, refus HTTP masqué par le moteur.
+    private func refineFailure(_ failure: PlaybackFailure, channel: ChannelID, format: StreamFormat) {
+        guard let client = app?.client else { return }
+        let gen = generation
+        let url = client.urls.liveURL(channel: channel, format: format)
+        Task { [weak self] in
+            let verdict = await ArchiveProbe.probe(url, using: client.http, timeout: 8)
+            guard let self, gen == self.generation, case .failed = self.phase else { return }
+            let refined = failure.refined(by: verdict)
+            self.log.log(.info, "lecture", "Sondage après abandon : \(verdict)")
+            guard refined != failure else { return }
+            self.phase = .failed(refined.userMessage)
+            self.log.log(.warning, "lecture", "Cause précisée : \(refined)")
+        }
     }
 
     /// Détail technique du dernier échec (moteur, format, erreur), affiché sous le message.

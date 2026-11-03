@@ -196,7 +196,14 @@ final class AppModel {
         guard let client, let credentials, let session else { return }
         async let categoriesTask = client.liveCategories()
         async let channelsTask = client.liveStreams()
-        let (categories, channels) = try await (categoriesTask, channelsTask)
+        let categories = try await categoriesTask
+        let channels: [Channel]
+        do {
+            channels = try await channelsTask
+        } catch let error as XtreamError where error.allowsCategoryFallback && !categories.isEmpty {
+            log.log(.warning, "catalogue", "Liste complète refusée (\(error.userMessage)) : chargement par catégorie")
+            channels = try await client.liveStreams(byCategory: categories)
+        }
         applyCatalog(categories, channels, savedAt: Date())
         try? cache.write(CatalogSnapshot(categories: categories, channels: channels), name: catalogCacheName(credentials))
         epg.configure(client: client, session: session, channels: channels, settings: settings)

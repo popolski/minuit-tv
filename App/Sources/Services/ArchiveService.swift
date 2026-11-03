@@ -40,7 +40,7 @@ final class ArchiveService {
             for format in formats {
                 let url = client.urls.timeshiftURL(channel: channel, start: window.requestStart, durationMinutes: window.durationMinutes,
                                                    serverTimeZone: serverTimeZone, style: style, format: format)
-                let verdict = await probe(url, http: client.http)
+                let verdict = await ArchiveProbe.probe(url, using: client.http)
                 log.log(.info, "replay", "Sondage \(style.rawValue)/\(format.rawValue) : \(verdict)")
                 switch verdict {
                 case .playable(let detected):
@@ -48,7 +48,7 @@ final class ArchiveService {
                     if !playable.contains(detected) { playable.append(detected) }
                 case .httpError(let code):
                     lastHint = "le serveur répond \(code)"
-                case .notMedia(let hint):
+                case .notMedia(let hint), .providerMessage(let hint):
                     lastHint = hint
                 case .empty:
                     lastHint = "réponse vide"
@@ -63,17 +63,5 @@ final class ArchiveService {
             }
         }
         return .unavailable("Archive annoncée mais non lisible (\(lastHint)).")
-    }
-
-    private func probe(_ url: URL, http: HTTPClient) async -> ArchiveProbe.Verdict {
-        do {
-            let response = try await http.fetchPrefix(HTTPRequest(url: url, timeout: 12, byteRange: 0...(ArchiveProbe.probeByteCount - 1)),
-                                                     maxBytes: ArchiveProbe.probeByteCount)
-            return ArchiveProbe.classify(statusCode: response.statusCode, contentType: response.header("Content-Type"),
-                                         body: response.body.prefix(ArchiveProbe.probeByteCount))
-        } catch {
-            log.log(.warning, "replay", "Sondage : erreur réseau \(error)")
-            return .httpError(0)
-        }
     }
 }

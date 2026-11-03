@@ -248,6 +248,44 @@ final class XtreamClientTests: XCTestCase {
         XCTAssertFalse(XtreamError.transport(.blockedBySystemPolicy).userMessage.contains("HTTPS a échoué"))
     }
 
+    func testLiveStreamsByCategoryMergesAndSkipsFailedCategory() async throws {
+        let http = MockHTTPClient([{ request in
+            let query = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            switch query.first(where: { $0.name == "category_id" })?.value {
+            case "1": return ok(Data(#"[{"stream_id":10,"name":"TF1","category_id":"1"},{"stream_id":11,"name":"M6","category_id":"1"}]"#.utf8))
+            // Fiche sans category_id, chaîne déjà vue dans la catégorie 1.
+            case "2": return ok(Data(#"[{"stream_id":11,"name":"M6"},{"stream_id":12,"name":"Arte"}]"#.utf8))
+            default: return status(500)
+            }
+        }])
+        let categories = ["1", "2", "3"].enumerated().map { ChannelCategory(id: CategoryID($0.element), name: $0.element, serverOrder: $0.offset) }
+        let channels = try await makeClient(http).liveStreams(byCategory: categories)
+        XCTAssertEqual(channels.map(\.id.rawValue), [10, 11, 12])
+        XCTAssertEqual(channels[1].categoryIDs, [CategoryID("1"), CategoryID("2")])
+        XCTAssertEqual(channels[2].categoryIDs, [CategoryID("2")])
+    }
+
+    func testLiveStreamsByCategoryGivesUpWhenServerRefusesEverything() async {
+        let http = MockHTTPClient(sequence: [status(403)])
+        let categories = (1...9).map { ChannelCategory(id: CategoryID(String($0)), name: "C\($0)", serverOrder: $0) }
+        do {
+            _ = try await makeClient(http).liveStreams(byCategory: categories)
+            XCTFail("échec attendu")
+        } catch {
+            XCTAssertEqual(error, .http(status: 403))
+        }
+        XCTAssertEqual(http.requestCount, 4, "abandon après le premier lot, sans parcourir toutes les catégories")
+    }
+
+    func testCategoryFallbackOnlyForListProblems() {
+        XCTAssertTrue(XtreamError.unexpectedResponse(context: "chaînes").allowsCategoryFallback)
+        XCTAssertTrue(XtreamError.transport(.timedOut).allowsCategoryFallback)
+        XCTAssertTrue(XtreamError.http(status: 403).allowsCategoryFallback)
+        XCTAssertFalse(XtreamError.http(status: 429).allowsCategoryFallback)
+        XCTAssertFalse(XtreamError.transport(.offline).allowsCategoryFallback)
+        XCTAssertFalse(XtreamError.accountExpired(nil).allowsCategoryFallback)
+    }
+
     func testErrorMessagesNeverContainSecrets() {
         let errors: [XtreamError] = [.transport(.timedOut), .http(status: 403), .authenticationRejected,
                                      .accountExpired(Date()), .tooManyConnections(max: 2), .unexpectedResponse(context: "x")]

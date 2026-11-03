@@ -14,6 +14,8 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Index EPG, fusion, nettoyage, trous, cache | ✅ | ✅ Linux | ✅ | ⏳ |
 | Fuseaux horaires et changements d'heure | ✅ | ✅ Linux | ✅ | ⏳ |
 | Catalogue, recherche, catégories masquées/réordonnées, adultes | ✅ | ✅ Linux | ✅ | ⏳ |
+| Repli du catalogue par catégorie si la liste complète est refusée | ✅ | ⏳ | ✅ (écrit) | ⏳ |
+| Page d'erreur du fournisseur reconnue à l'abandon d'une chaîne (sondage 4 Ko) | ✅ | ⏳ | ✅ (écrit) | ⏳ |
 | Favoris, récentes, dernière chaîne (persistance) | ✅ | ✅ Linux | ✅ | ⏳ |
 | Zapping (boucle, rappel, regroupement des appuis) | ✅ | ✅ Linux | ✅ (logique) | ⏳ |
 | Planification moteur × format, mémoire par chaîne | ✅ | ✅ Linux | ✅ | ⏳ |

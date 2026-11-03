@@ -135,8 +135,10 @@ public enum CatchupEvaluator {
 public enum ArchiveProbe {
     public enum Verdict: Sendable, Equatable {
         case playable(StreamFormat)
-        /// Le serveur répond, mais pas avec un flux vidéo (page d'erreur, JSON, vide).
+        /// Le serveur répond, mais pas avec un flux vidéo (playlist vide, contenu inconnu).
         case notMedia(hint: String)
+        /// Le fournisseur répond par un message (page web, JSON) à la place de la vidéo.
+        case providerMessage(hint: String)
         case httpError(Int)
         case empty
     }
@@ -156,14 +158,28 @@ public enum ArchiveProbe {
                 return trimmed.contains("#EXTINF") || trimmed.contains("#EXT-X-STREAM-INF") ? .playable(.hls) : .notMedia(hint: "playlist vide")
             }
             let lowered = trimmed.lowercased()
-            if lowered.hasPrefix("<") { return .notMedia(hint: "page HTML") }
-            if lowered.hasPrefix("{") || lowered.hasPrefix("[") { return .notMedia(hint: "réponse JSON") }
+            if lowered.hasPrefix("<") { return .providerMessage(hint: "page HTML") }
+            if lowered.hasPrefix("{") || lowered.hasPrefix("[") { return .providerMessage(hint: "réponse JSON") }
         }
+        if let type = contentType?.lowercased(), type.contains("text/html") { return .providerMessage(hint: "page HTML") }
         if let type = contentType?.lowercased(), type.contains("video/mp2t") || type.contains("mpegurl") {
             // En-tête plausible mais contenu non reconnu : on reste prudent.
             return .notMedia(hint: "contenu non reconnu (\(type))")
         }
         return .notMedia(hint: "contenu non reconnu")
+    }
+
+    /// Sonde les premiers octets d'une URL de flux (archive ou direct). Une erreur réseau
+    /// donne `.httpError(0)`. Consomme brièvement une connexion du compte.
+    public static func probe(_ url: URL, using http: HTTPClient, timeout: TimeInterval = 12) async -> Verdict {
+        do {
+            let response = try await http.fetchPrefix(HTTPRequest(url: url, timeout: timeout, byteRange: 0...(probeByteCount - 1)),
+                                                      maxBytes: probeByteCount)
+            return classify(statusCode: response.statusCode, contentType: response.header("Content-Type"),
+                            body: response.body.prefix(probeByteCount))
+        } catch {
+            return .httpError(0)
+        }
     }
 
     /// Paquets TS de 188 octets commençant par 0x47 (on tolère un décalage initial).

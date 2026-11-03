@@ -67,10 +67,14 @@ public enum PlaybackFailure: Sendable, Equatable {
     case archiveUnavailable
     /// Le serveur du flux présente un certificat HTTPS refusé par tvOS.
     case certificateRejected
+    /// Le fournisseur renvoie une page web ou un message à la place de la vidéo.
+    case providerMessage
     case unknown(String)
 
     public var userMessage: String {
         switch self {
+        case .providerMessage:
+            return "Le fournisseur a renvoyé une page d'erreur au lieu de la vidéo. Le problème vient de son côté (abonnement, connexions ou serveur)."
         case .network: return "Connexion au flux interrompue."
         case .http(let code) where code == 404: return "Chaîne indisponible sur le serveur (404)."
         case .http(let code) where code == 401 || code == 403: return "Accès au flux refusé (\(code))."
@@ -89,6 +93,22 @@ public enum PlaybackFailure: Sendable, Equatable {
         case .archiveUnavailable: return "Ce programme n'est pas disponible en replay."
         case .certificateRejected: return "Le serveur de cette chaîne redirige vers une connexion sécurisée dont le certificat est refusé par l'Apple TV."
         case .unknown: return "Lecture impossible."
+        }
+    }
+
+    /// Précise un abandon à l'aide d'un sondage du flux : les moteurs signalent souvent un
+    /// refus HTTP ou une page d'erreur du fournisseur comme un échec générique.
+    public func refined(by verdict: ArchiveProbe.Verdict) -> PlaybackFailure {
+        switch self {
+        case .unknown, .network, .health, .sourceEnded, .decoder: break
+        default: return self   // déjà précis
+        }
+        switch verdict {
+        case .providerMessage: return .providerMessage
+        case .httpError(456), .httpError(458): return .connectionLimit
+        // Pas les autres codes : un serveur peut répondre 416 à l'en-tête Range du sondage.
+        case .httpError(let code) where [401, 403, 404].contains(code) || (500...599).contains(code): return .http(code)
+        default: return self
         }
     }
 
