@@ -4,6 +4,7 @@ import MinuitCore
 struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
+    @FocusState private var navFocus: AppRouter.Tab?
 
     var body: some View {
         @Bindable var router = router
@@ -18,7 +19,7 @@ struct RootView: View {
                 LoadingView(step: step)
             case .ready, .degraded:
                 VStack(spacing: 0) {
-                    TopBar()
+                    TopBar(navFocus: $navFocus)
                         .focusSection()
                     DegradedNotice()
                         .padding(.horizontal, Theme.Metrics.safeHorizontal)
@@ -32,6 +33,7 @@ struct RootView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .focusSection()
+                    .environment(\.backToTopBar, { navFocus = router.selectedTab })
                 }
             }
         }
@@ -76,6 +78,7 @@ struct AmbientBackdrop: View {
 private struct TopBar: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
+    var navFocus: FocusState<AppRouter.Tab?>.Binding
 
     var body: some View {
         HStack(alignment: .center) {
@@ -100,7 +103,7 @@ private struct TopBar: View {
             }
 
             Spacer()
-            NavCapsule()
+            NavCapsule(navFocus: navFocus)
             Spacer()
 
             TimelineView(.periodic(from: .now, by: 60)) { context in
@@ -131,6 +134,7 @@ private struct TopBar: View {
 /// Capsule de navigation flottante : Recherche · Direct · Guide · Réglages.
 private struct NavCapsule: View {
     @Environment(AppRouter.self) private var router
+    var navFocus: FocusState<AppRouter.Tab?>.Binding
 
     var body: some View {
         HStack(spacing: 6) {
@@ -153,6 +157,7 @@ private struct NavCapsule: View {
             .frame(minWidth: title == nil ? 44 : 110)
         }
         .buttonStyle(NavSegmentStyle(isSelected: router.selectedTab == tab))
+        .focused(navFocus, equals: tab)
     }
 }
 

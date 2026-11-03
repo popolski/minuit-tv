@@ -7,6 +7,8 @@ import MinuitCore
 final class GuideViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegate, GuideLayoutDataSource {
     private let app: AppModel
     private let onSelect: (Programme?, Channel) -> Void
+    /// Retour : remonte vers la barre du haut au lieu de quitter l'application.
+    var onBack: (() -> Void)?
     private let layout = GuideLayout()
     private var collectionView: UICollectionView!
 
@@ -235,6 +237,19 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
 
     private func maxArchiveDays() -> Int { max(1, channels.compactMap { $0.archive?.days }.max() ?? 1) }
 
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        if presses.contains(where: { $0.type == .menu }), onBack != nil { return }
+        super.pressesBegan(presses, with: event)
+    }
+
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        if presses.contains(where: { $0.type == .menu }), let onBack {
+            onBack()
+            return
+        }
+        super.pressesEnded(presses, with: event)
+    }
+
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         fetchWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.requestVisibleEPG() }
@@ -257,6 +272,7 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
 struct GuideScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
+    @Environment(\.backToTopBar) private var backToTopBar
     @State private var selected: (programme: Programme, channel: Channel)?
     @State private var showDetail = false
     @State private var proxy = GuideProxy()
@@ -278,7 +294,7 @@ struct GuideScreen: View {
             .padding(.horizontal, Theme.Metrics.safeHorizontal)
             .focusSection()
 
-            GuideGrid(app: app, proxy: proxy) { programme, channel in
+            GuideGrid(app: app, proxy: proxy, onBack: backToTopBar) { programme, channel in
                 guard let programme else {
                     router.watch(channel.id, context: .all, app: app)
                     return
@@ -293,6 +309,7 @@ struct GuideScreen: View {
             .focusSection()
         }
         .padding(.top, 10)
+        .onExitCommand { backToTopBar() }
         .sheet(isPresented: $showDetail) {
             if let selected {
                 ProgrammeDetailView(programme: selected.programme, channel: selected.channel)
@@ -317,10 +334,12 @@ final class GuideProxy {
 private struct GuideGrid: UIViewControllerRepresentable {
     let app: AppModel
     let proxy: GuideProxy
+    let onBack: () -> Void
     let onSelect: (Programme?, Channel) -> Void
 
     func makeUIViewController(context: Context) -> GuideViewController {
         let controller = GuideViewController(app: app, onSelect: onSelect)
+        controller.onBack = onBack
         proxy.controller = controller
         return controller
     }

@@ -67,6 +67,21 @@ enum Theme {
     }
 }
 
+// MARK: - Retour vers la barre du haut
+
+private struct BackToTopBarKey: EnvironmentKey {
+    static var defaultValue: () -> Void { {} }
+}
+
+extension EnvironmentValues {
+    /// Bouton Retour : remonte le focus vers la capsule de navigation (comportement tvOS
+    /// standard des onglets). Depuis la capsule, Retour quitte l'application.
+    var backToTopBar: () -> Void {
+        get { self[BackToTopBarKey.self] }
+        set { self[BackToTopBarKey.self] = newValue }
+    }
+}
+
 // MARK: - Focus inversé
 
 private struct OnFocusKey: EnvironmentKey {

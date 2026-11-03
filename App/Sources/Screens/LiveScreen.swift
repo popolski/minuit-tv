@@ -7,17 +7,18 @@ import MinuitCore
 struct LiveScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
+    @FocusState private var sidebarFocus: ChannelListContext?
 
     var body: some View {
         HStack(alignment: .top, spacing: 36) {
-            LiveSidebar()
+            LiveSidebar(focused: $sidebarFocus)
                 .frame(width: 500)
                 .focusSection()
             Rectangle()
                 .fill(Color.white.opacity(0.08))
                 .frame(width: 2)
                 .padding(.vertical, 30)
-            ChannelListColumn(context: router.liveContext)
+            ChannelListColumn(context: router.liveContext, sidebarFocus: $sidebarFocus)
                 .focusSection()
         }
         .padding(.horizontal, Theme.Metrics.safeHorizontal - 20)
@@ -29,7 +30,8 @@ struct LiveScreen: View {
 private struct LiveSidebar: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
-    @FocusState private var focused: ChannelListContext?
+    @Environment(\.backToTopBar) private var backToTopBar
+    var focused: FocusState<ChannelListContext?>.Binding
 
     var body: some View {
         ScrollView {
@@ -49,8 +51,9 @@ private struct LiveSidebar: View {
             .padding(.horizontal, 12)
         }
         .scrollClipDisabled()
-        .defaultFocus($focused, router.liveContext)
-        .onChange(of: focused) { _, value in
+        .defaultFocus(focused, router.liveContext)
+        .onExitCommand { backToTopBar() }
+        .onChange(of: focused.wrappedValue) { _, value in
             // La liste de droite suit le focus, comme dans les réglages tvOS.
             if let value, value != router.liveContext {
                 router.liveContext = value
@@ -71,7 +74,7 @@ private struct LiveSidebar: View {
             }
         }
         .buttonStyle(SidebarButtonStyle(isSelected: router.liveContext == context))
-        .focused($focused, equals: context)
+        .focused(focused, equals: context)
     }
 }
 
@@ -107,6 +110,7 @@ private struct ChannelListColumn: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
     let context: ChannelListContext
+    var sidebarFocus: FocusState<ChannelListContext?>.Binding
     @FocusState private var focused: ChannelID?
 
     var body: some View {
@@ -152,6 +156,8 @@ private struct ChannelListColumn: View {
         }
         .padding(.top, 20)
         .defaultFocus($focused, app.preferences.lastChannel)
+        // Retour : de la liste des chaînes vers la catégorie, à gauche (pas de sortie de l'app).
+        .onExitCommand { sidebarFocus.wrappedValue = context }
         .onChange(of: focused) { _, id in
             guard let id, let url = app.library.channel(id)?.logoURL, let logo = LogoCache.shared.cached(url) else {
                 router.ambient = Theme.Palette.moon
@@ -236,6 +242,7 @@ struct ChannelRowContent: View {
 struct SearchScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
+    @Environment(\.backToTopBar) private var backToTopBar
     @State private var query = ""
 
     var body: some View {
@@ -257,6 +264,7 @@ struct SearchScreen: View {
                 .padding(.horizontal, Theme.Metrics.safeHorizontal + 160)
                 .padding(.vertical, 20)
             }
+            .onExitCommand { backToTopBar() }
             .searchable(text: $query, prompt: "Rechercher une chaîne")
         }
     }

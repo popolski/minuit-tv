@@ -3,6 +3,7 @@ import MinuitCore
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.backToTopBar) private var backToTopBar
 
     var body: some View {
         NavigationStack {
@@ -47,6 +48,7 @@ struct SettingsView: View {
                 .focusSection()
             }
             .padding(.horizontal, Theme.Metrics.safeHorizontal)
+            .onExitCommand { backToTopBar() }
         }
     }
 
