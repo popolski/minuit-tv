@@ -32,6 +32,8 @@ final class PlaybackController {
         /// Fenêtre effectivement demandée (décalée après un repositionnement par requête).
         var current: ArchiveWindow
         var format: StreamFormat
+        /// Formats d'archive vérifiés lisibles par sondage.
+        var formats: [StreamFormat]
         var style: XtreamURLBuilder.TimeshiftStyle
         /// Décalage de `current.requestStart` par rapport à `original.requestStart`.
         var baseOffset: TimeInterval
@@ -163,7 +165,7 @@ final class PlaybackController {
             ladder = planner.ladder(allowedFormats: session.account.allowedFormats, remembered: memory.attempt(for: channel))
         case .archive:
             guard let archive else { return }
-            ladder = archiveLadder(for: archive.format)
+            ladder = archiveLadder(for: archive.formats)
         }
         guard !ladder.isEmpty else {
             fail(.unsupportedFormat)
@@ -174,16 +176,17 @@ final class PlaybackController {
         start(ladder[0])
     }
 
-    private func archiveLadder(for format: StreamFormat) -> [PlaybackAttempt] {
+    /// Échelle de lecture d'une archive : MPEG-TS par AetherEngine d'abord (format natif des
+    /// archives Xtream, celui qui fonctionne en direct), puis HLS par AVPlayer, puis HLS par AetherEngine.
+    private func archiveLadder(for formats: [StreamFormat]) -> [PlaybackAttempt] {
         let available = EngineFactory.availableKinds
-        switch format {
-        case .hls:
-            // AVPlayer d'abord : repositionnement précis dans une archive HLS.
-            return [PlaybackAttempt(engine: .avPlayer, format: .hls), PlaybackAttempt(engine: .aether, format: .hls)]
-                .filter { available.contains($0.engine) }
-        case .mpegts:
-            return available.contains(.aether) ? [PlaybackAttempt(engine: .aether, format: .mpegts)] : []
+        var ladder: [PlaybackAttempt] = []
+        if formats.contains(.mpegts) { ladder.append(PlaybackAttempt(engine: .aether, format: .mpegts)) }
+        if formats.contains(.hls) {
+            ladder.append(PlaybackAttempt(engine: .avPlayer, format: .hls))
+            ladder.append(PlaybackAttempt(engine: .aether, format: .hls))
         }
+        return ladder.filter { available.contains($0.engine) }
     }
 
     private func start(_ attempt: PlaybackAttempt) {
@@ -192,6 +195,7 @@ final class PlaybackController {
         let gen = generation
         loadTask?.cancel()
         activeAttempt = attempt
+        if archive != nil { archive?.format = attempt.format }
         hadFirstFrame = false
         isBuffering = false
         phase = .tuning
@@ -299,7 +303,7 @@ final class PlaybackController {
     private func handleFailure(_ failure: PlaybackFailure) {
         guard target != nil else { return }
         lastFailure = failure
-        log.log(.warning, "lecture", "Incident (\(generation)) : \(failure)")
+        log.log(.warning, "lecture", "Incident (\(generation)) : \(failure) via \(activeAttempt?.description ?? "?") — \(engine?.lastErrorDetail ?? "sans détail")")
         if !networkAvailable {
             phase = .waitingForNetwork
             stopHealthLoop()
@@ -342,10 +346,14 @@ final class PlaybackController {
     private func fail(_ failure: PlaybackFailure) {
         statistics.failures += 1
         stopHealthLoop()
+        failureDetail = [activeAttempt?.description, engine?.lastErrorDetail].compactMap { $0 }.joined(separator: " · ")
         engine?.stop()   // libère la connexion du compte
         phase = .failed(failure.userMessage)
-        log.log(.error, "lecture", "Abandon : \(failure)")
+        log.log(.error, "lecture", "Abandon : \(failure) — \(failureDetail ?? "")")
     }
+
+    /// Détail technique du dernier échec (moteur, format, erreur), affiché sous le message.
+    private(set) var failureDetail: String?
 
     // MARK: Santé
 
@@ -469,7 +477,7 @@ final class PlaybackController {
         let previousPhase = phase
         phase = .resolvingArchive
         let formats: [StreamFormat] = [.hls, .mpegts].filter { format in
-            session.account.allowedFormats.contains(format) && !archiveLadder(for: format).isEmpty
+            session.account.allowedFormats.contains(format) && !archiveLadder(for: [format]).isEmpty
         }
         let resolution = await app.archive.resolve(channel: channel.id, window: window, formats: formats)
         switch resolution {
@@ -477,8 +485,11 @@ final class PlaybackController {
             phase = previousPhase == .resolvingArchive ? .idle : previousPhase
             showToast(reason)
             log.log(.warning, "replay", reason)
-        case .playable(_, let format, let style):
-            archive = ArchiveSession(original: window, current: window, format: format, style: style, baseOffset: 0, channel: channel.id)
+        case .playable(let playableFormats, let style):
+            let ladder = archiveLadder(for: playableFormats)
+            log.log(.info, "replay", "Formats lisibles : \(playableFormats.map(\.rawValue)) — essais : \(ladder.map(\.description))")
+            archive = ArchiveSession(original: window, current: window, format: ladder.first?.format ?? playableFormats[0],
+                                     formats: playableFormats, style: style, baseOffset: 0, channel: channel.id)
             archivePosition = 0
             panel = .none
             displayedChannel = channel.id

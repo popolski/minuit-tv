@@ -20,6 +20,7 @@ final class AetherPlayerEngine: PlaybackEngine {
     private let surface = AetherPlayerView(frame: .zero)
     var renderView: UIView { surface }
     var onEvent: ((EngineEvent) -> Void)?
+    private(set) var lastErrorDetail: String?
 
     private var cancellables: Set<AnyCancellable> = []
     private var mode: EngineLoadRequest.Mode = .live
@@ -59,8 +60,16 @@ final class AetherPlayerEngine: PlaybackEngine {
         engine.$state
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
-                guard let self, case .error = state else { return }
-                self.onEvent?(.failed(Self.classify(self.engine.errorInfo)))
+                guard let self, case .error(let message) = state else { return }
+                let info = self.engine.errorInfo
+                var parts = ["AetherEngine", "route \(self.engine.videoRoute.rawValue)"]
+                if let info {
+                    parts.append(info.kind.rawValue)
+                    if let domain = info.underlyingDomain { parts.append("\(domain) \(info.underlyingCode.map(String.init) ?? "")") }
+                }
+                parts.append(String(message.prefix(160)))
+                self.lastErrorDetail = parts.joined(separator: " · ")
+                self.onEvent?(.failed(Self.classify(info)))
             }
             .store(in: &cancellables)
 
@@ -98,6 +107,7 @@ final class AetherPlayerEngine: PlaybackEngine {
     var duration: Double? { engine.duration > 0 ? engine.duration : nil }
 
     func load(_ request: EngineLoadRequest) async throws {
+        lastErrorDetail = nil
         mode = request.mode
         firstFrameReported = false
         let headers = ["User-Agent": request.userAgent]

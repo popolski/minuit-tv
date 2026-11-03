@@ -10,7 +10,8 @@ import MinuitCore
 @MainActor
 final class ArchiveService {
     enum Resolution: Equatable {
-        case playable(URL, StreamFormat, XtreamURLBuilder.TimeshiftStyle)
+        /// Formats réellement lisibles (vérifiés), dans l'ordre de préférence, et style d'URL.
+        case playable(formats: [StreamFormat], style: XtreamURLBuilder.TimeshiftStyle)
         case unavailable(String)
     }
 
@@ -35,6 +36,7 @@ final class ArchiveService {
         let styles: [XtreamURLBuilder.TimeshiftStyle] = settings.confirmedStyle.map { [$0] } ?? [.path, .query]
         var lastHint = "aucune réponse exploitable"
         for style in styles {
+            var playable: [StreamFormat] = []
             for format in formats {
                 let url = client.urls.timeshiftURL(channel: channel, start: window.requestStart, durationMinutes: window.durationMinutes,
                                                    serverTimeZone: serverTimeZone, style: style, format: format)
@@ -42,11 +44,8 @@ final class ArchiveService {
                 log.log(.info, "replay", "Sondage \(style.rawValue)/\(format.rawValue) : \(verdict)")
                 switch verdict {
                 case .playable(let detected):
-                    if settings.confirmedStyle == nil {
-                        settings.confirmedStyle = style
-                        onStyleConfirmed?(style)
-                    }
-                    return .playable(url, detected, style)
+                    // Un serveur peut répondre en MPEG-TS à une URL .m3u8 : on retient le format réel.
+                    if !playable.contains(detected) { playable.append(detected) }
                 case .httpError(let code):
                     lastHint = "le serveur répond \(code)"
                 case .notMedia(let hint):
@@ -54,6 +53,13 @@ final class ArchiveService {
                 case .empty:
                     lastHint = "réponse vide"
                 }
+            }
+            if !playable.isEmpty {
+                if settings.confirmedStyle == nil {
+                    settings.confirmedStyle = style
+                    onStyleConfirmed?(style)
+                }
+                return .playable(formats: playable, style: style)
             }
         }
         return .unavailable("Archive annoncée mais non lisible (\(lastHint)).")

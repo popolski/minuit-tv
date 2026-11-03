@@ -53,6 +53,7 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
 
     func load(_ request: EngineLoadRequest) async throws {
         stop()
+        lastErrorDetail = nil
         guard request.format == .hls else { throw EngineError.unsupported }
         mode = request.mode
         matchContent = request.matchContent
@@ -149,7 +150,15 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
         }
     }
 
+    private(set) var lastErrorDetail: String?
+
     private func report(error: NSError?) {
+        let event = item?.errorLog()?.events.last
+        var parts = ["AVPlayer"]
+        if let error { parts.append("\(error.domain) \(error.code)") }
+        if let underlying = error?.userInfo[NSUnderlyingErrorKey] as? NSError { parts.append("sous-jacent \(underlying.domain) \(underlying.code)") }
+        if let event { parts.append("journal \(event.errorDomain) \(event.errorStatusCode) \(event.errorComment ?? "")") }
+        lastErrorDetail = parts.joined(separator: " · ")
         onEvent?(.failed(Self.classify(error, errorLog: item?.errorLog())))
     }
 

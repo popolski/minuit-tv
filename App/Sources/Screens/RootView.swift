@@ -9,6 +9,7 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var router = router
+        GeometryReader { screen in
         ZStack {
             switch app.phase {
             case .launching:
@@ -41,7 +42,9 @@ struct RootView: View {
                 .defaultFocus($navFocus, router.selectedTab)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Taille imposée : aucun contenu (texte long, liste) ne peut agrandir la racine.
+        .frame(width: screen.size.width, height: screen.size.height)
+        }
         // Le fond est un arrière-plan : ses grands cercles flous ne doivent pas agrandir la
         // mise en page (sinon l'interface dépasse l'écran et la barre du haut disparaît).
         .background { AmbientBackdrop(color: router.ambient) }

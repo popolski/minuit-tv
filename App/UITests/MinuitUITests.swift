@@ -136,6 +136,47 @@ final class MinuitUITests: XCTestCase {
         XCTAssertTrue(focusedID().hasPrefix("nav-"), "Retour doit mener à la capsule de navigation")
     }
 
+    /// Replay depuis le panneau des programmes (▶), sur une chaîne avec archive.
+    func testReplayFromProgrammePanel() {
+        launch()
+        waitForCatalog()
+        focusChannelList()
+        press(.select)
+        Thread.sleep(forTimeInterval: 5)
+        assertRunning("ouverture de la chaîne")
+        press(.right)
+        Thread.sleep(forTimeInterval: 2)
+        log("panneau des programmes, focus \(focusedID())")
+        screenshot("09-panneau-programmes")
+        press(.up)
+        press(.select)
+        Thread.sleep(forTimeInterval: 7)
+        assertRunning("lancement d'un replay")
+        log("badge REPLAY visible : \(app.staticTexts["REPLAY"].exists)")
+        screenshot("10-replay")
+        press(.select)
+        Thread.sleep(forTimeInterval: 1)
+        screenshot("11-replay-transport")
+    }
+
+    /// Écran Diagnostics : mise en page dans l'écran (pas de débordement).
+    func testDiagnosticsLayout() {
+        launch()
+        waitForCatalog()
+        press(.right, times: 2)
+        log("capsule : \(focusedID())")
+        press(.select)
+        Thread.sleep(forTimeInterval: 1)
+        press(.down)
+        var n = 0
+        while !focused.label.contains("Diagnostics") && n < 10 { press(.down); n += 1 }
+        press(.select)
+        Thread.sleep(forTimeInterval: 2)
+        assertRunning("ouverture des diagnostics")
+        screenshot("12-diagnostics")
+        assertOnScreen(app.buttons["nav-settings"], "capsule de navigation sur l'écran Diagnostics")
+    }
+
     func testBackNavigationReachesMenu() {
         launch()
         waitForCatalog()

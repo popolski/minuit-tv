@@ -55,6 +55,9 @@ protocol PlaybackEngine: AnyObject {
     func stop()
     func healthSample(at time: TimeInterval, wantsToPlay: Bool) -> HealthSample
 
+    /// Détail technique de la dernière erreur (domaine, code, statut HTTP…), pour le diagnostic.
+    var lastErrorDetail: String? { get }
+
     /// Recadrage plein écran (aspect fill) plutôt qu'ajustement (aspect fit).
     var fillsScreen: Bool { get set }
 

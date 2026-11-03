@@ -100,6 +100,11 @@ private struct FailureView: View {
                     .foregroundStyle(Theme.Palette.ember)
                 Text(message).font(Theme.Typeface.title(38)).multilineTextAlignment(.center)
                     .foregroundStyle(Theme.Palette.textPrimary)
+                if let detail = controller.failureDetail, !detail.isEmpty {
+                    Text(detail).font(.system(size: 19, design: .monospaced))
+                        .foregroundStyle(Theme.Palette.textTertiary)
+                        .multilineTextAlignment(.center).lineLimit(3)
+                }
                 HStack(spacing: 24) {
                     Button { controller.retry() } label: {
                         Label("Réessayer", systemImage: "arrow.clockwise").font(Theme.Typeface.label(24)).primaryText()

@@ -228,36 +228,64 @@ private struct DiagnosticsView: View {
 
     var body: some View {
         let stats = app.playback.statistics
-        List {
-            if let crash = CrashReporter.lastReport {
-                Section("Dernière fermeture inattendue") {
-                    Text(crash.prefix(3000))
-                        .font(.system(size: 17, design: .monospaced))
-                        .foregroundStyle(Theme.Palette.textSecondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                if let crash = CrashReporter.lastReport {
+                    Text("Dernière fermeture inattendue").sectionHeader().padding(.leading, 22)
+                    row(nil, String(crash.prefix(2000)), monospaced: true)
                 }
-            }
-            Section("Lecture") {
-                LabeledContent("Moteur actif", value: app.playback.activeAttempt?.description ?? "—")
-                LabeledContent("Détail", value: app.playback.technicalSummary)
-                LabeledContent("Démarrages", value: "\(stats.tunes)")
-                LabeledContent("Première image (médiane)", value: stats.medianFirstFrame.map { String(format: "%.2f s", $0) } ?? "—")
-                LabeledContent("Reconnexions / replis / échecs", value: "\(stats.recoveries) / \(stats.fallbacks) / \(stats.failures)")
-            }
-            Section("Stockage") {
-                Button("Vider les caches (catalogue, guide, logos)") { app.clearCaches() }
-            }
-            Section("Journal (secrets masqués)") {
+                Text("Lecture").sectionHeader().padding(.leading, 22).padding(.top, 10)
+                row("Moteur actif", app.playback.activeAttempt?.description ?? "—")
+                row("Détail", app.playback.technicalSummary)
+                if let failure = app.playback.failureDetail, !failure.isEmpty {
+                    row("Dernier échec", failure, monospaced: true)
+                }
+                row("Démarrages", "\(stats.tunes)")
+                row("Première image (médiane)", stats.medianFirstFrame.map { String(format: "%.2f s", $0) } ?? "—")
+                row("Reconnexions / replis / échecs", "\(stats.recoveries) / \(stats.fallbacks) / \(stats.failures)")
+                row("Version", buildLabel)
+
+                Text("Stockage").sectionHeader().padding(.leading, 22).padding(.top, 10)
+                Button { app.clearCaches() } label: {
+                    Text("Vider les caches (catalogue, guide, logos)").font(Theme.Typeface.label(24)).primaryText()
+                }
+                .buttonStyle(GlassRowButtonStyle(horizontalPadding: 24, verticalPadding: 14))
+
+                Text("Journal (secrets masqués, plus récent en premier)").sectionHeader().padding(.leading, 22).padding(.top, 10)
+                if entries.isEmpty {
+                    Text("Journal vide.").font(Theme.Typeface.body(22)).foregroundStyle(Theme.Palette.textTertiary).padding(.leading, 22)
+                }
                 ForEach(entries.reversed()) { entry in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(entry.date.formatted(date: .omitted, time: .standard)) · \(entry.level.rawValue) · \(entry.category)")
-                            .font(Theme.Typeface.caption(18)).foregroundStyle(Theme.Palette.textTertiary)
-                        Text(entry.message).font(Theme.Typeface.body(20))
-                    }
+                    row("\(entry.date.formatted(date: .omitted, time: .standard)) · \(entry.level.rawValue) · \(entry.category)",
+                        entry.message, monospaced: true)
                 }
             }
+            .padding(.horizontal, 40)
+            .padding(.vertical, 30)
+            .frame(maxWidth: 1500)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Diagnostics")
         .onAppear { entries = DiagnosticsLog.shared.snapshot() }
+    }
+
+    /// Rangée focalisable (indispensable pour faire défiler l'écran à la télécommande).
+    private func row(_ label: String?, _ value: String, monospaced: Bool = false) -> some View {
+        Button {} label: {
+            VStack(alignment: .leading, spacing: 4) {
+                if let label {
+                    Text(label).font(Theme.Typeface.caption(19)).tertiaryText()
+                }
+                Text(value)
+                    .font(monospaced ? .system(size: 19, design: .monospaced) : Theme.Typeface.body(23))
+                    .primaryText()
+                    .lineLimit(12)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(GlassRowButtonStyle(horizontalPadding: 24, verticalPadding: 12))
     }
 }
 
