@@ -317,3 +317,35 @@ extension Date {
         return clockFormatter.string(from: self)
     }
 }
+
+/// Emblème de Minuit : cadran dont les aiguilles se rejoignent sur 12 h, aiguille braise.
+/// Même dessin que l'icône de l'application (scripts/make_assets.py).
+struct MinuitMark: View {
+    var size: CGFloat
+
+    var body: some View {
+        let r = size / 2
+        ZStack {
+            Circle().strokeBorder(Theme.Palette.textPrimary, lineWidth: max(2, size * 0.075))
+            ForEach(1..<12) { k in
+                let major = k % 3 == 0
+                Capsule()
+                    .fill(Theme.Palette.moon)
+                    .frame(width: max(1.5, size * (major ? 0.05 : 0.028)), height: size * (major ? 0.16 : 0.08))
+                    .offset(y: -r * (major ? 0.78 : 0.82))
+                    .rotationEffect(.degrees(Double(k) * 30))
+            }
+            Capsule()
+                .fill(Theme.Palette.textPrimary)
+                .frame(width: size * 0.11, height: r * 0.55)
+                .offset(y: -r * 0.25)
+            Capsule()
+                .fill(Theme.Palette.ember)
+                .frame(width: size * 0.055, height: r * 0.85)
+                .offset(y: -r * 0.40)
+            Circle().fill(Theme.Palette.ember).frame(width: size * 0.17, height: size * 0.17)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}

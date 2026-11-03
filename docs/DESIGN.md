@@ -47,9 +47,11 @@ Textes : `#EEF2FA` (principal), `#9AA8C7` (secondaire), `#5F6E8F` (tertiaire).
 
 ## Icône
 
-Croissant de lune (Lune) et point de braise sur un ciel nuit avec halo diffus :
-« le direct, la nuit ». Icône tvOS à deux couches (parallaxe système native) et
-images Top Shelf générées par `scripts/make_assets.py`.
+**Cadran à minuit** : couronne claire, index lunaires, aiguilles superposées sur 12 h,
+aiguille des minutes en braise — le nom de l'application en image, lisible en petit.
+Icône tvOS à deux couches (parallaxe système) et Top Shelf générées par
+`scripts/make_assets.py` ; même dessin dans l'application (`MinuitMark`).
+Les autres pistes étudiées sont dans `docs/icon-concepts/planche.png`.
 
 ## Écrans
 

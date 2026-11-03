@@ -18,7 +18,7 @@ struct LoginView: View {
     var body: some View {
         HStack(spacing: 120) {
             VStack(spacing: 22) {
-                Image(systemName: "moon.stars.fill").font(.system(size: 96)).foregroundStyle(Theme.Palette.moon)
+                MinuitMark(size: 130)
                 Text("Minuit").font(Theme.Typeface.display(110)).foregroundStyle(Theme.Palette.textPrimary)
                 Text("La télévision en direct, sans détour.")
                     .font(Theme.Typeface.title(32))

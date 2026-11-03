@@ -117,9 +117,7 @@ private struct TopBar: View {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .fill(LinearGradient(colors: [Theme.Palette.nightRaised, Theme.Palette.surfaceFocused],
                                                  startPoint: .top, endPoint: .bottom))
-                        Image(systemName: "moon.stars.fill")
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(Theme.Palette.moon)
+                        MinuitMark(size: 44)
                     }
                     .frame(width: 64, height: 64)
                     VStack(alignment: .leading, spacing: 2) {
@@ -263,7 +261,7 @@ private struct LoadingView: View {
 
     var body: some View {
         VStack(spacing: 28) {
-            Image(systemName: "moon.stars.fill").font(.system(size: 80)).foregroundStyle(Theme.Palette.moon)
+            MinuitMark(size: 110)
             Text("Minuit").font(Theme.Typeface.display(96)).foregroundStyle(Theme.Palette.textPrimary)
             ProgressView().tint(Theme.Palette.moon)
             Text(step).font(Theme.Typeface.label()).foregroundStyle(Theme.Palette.textSecondary)

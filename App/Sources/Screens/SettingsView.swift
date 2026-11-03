@@ -11,7 +11,7 @@ struct SettingsView: View {
                 // Identité, à gauche.
                 VStack(spacing: 22) {
                     Spacer()
-                    Image(systemName: "moon.stars.fill").font(.system(size: 92)).foregroundStyle(Theme.Palette.moon)
+                    MinuitMark(size: 120)
                     Text("Minuit").font(Theme.Typeface.display(110)).foregroundStyle(Theme.Palette.textPrimary)
                     Text("La télévision en direct, sans détour.")
                         .font(Theme.Typeface.caption(22)).foregroundStyle(Theme.Palette.textSecondary)
