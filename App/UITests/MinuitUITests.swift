@@ -54,6 +54,14 @@ final class MinuitUITests: XCTestCase {
         XCTAssertEqual(state, .runningForeground, "L'application s'est fermée : \(step)")
     }
 
+    /// Vérifie qu'un élément est réellement dans l'écran (le focus seul ne le prouve pas).
+    private func assertOnScreen(_ element: XCUIElement, _ what: String) {
+        let screen = app.windows.firstMatch.frame
+        let frame = element.frame
+        log("\(what) : cadre \(frame), écran \(screen)")
+        XCTAssertTrue(screen.contains(frame), "\(what) hors de l'écran : \(frame)")
+    }
+
     private func waitForCatalog() {
         XCTAssertTrue(app.descendants(matching: .any)["channel-101"].waitForExistence(timeout: 30), "catalogue de démonstration absent")
     }
@@ -75,6 +83,7 @@ final class MinuitUITests: XCTestCase {
         log("focus au lancement : \(focusedID())")
         screenshot("01-lancement")
         XCTAssertTrue(focusedID().hasPrefix("nav-"), "au lancement, le focus doit être sur la capsule de navigation")
+        assertOnScreen(app.buttons["nav-live"], "capsule de navigation au lancement")
     }
 
     func testOpenChannelAndUseControls() {
@@ -119,6 +128,7 @@ final class MinuitUITests: XCTestCase {
         log("barre du haut : existe \(nav.exists), cadre \(nav.frame), focus \(focusedID())")
         screenshot("07-liste-defilee")
         XCTAssertTrue(nav.exists, "la capsule de navigation doit exister")
+        assertOnScreen(nav, "capsule de navigation, liste défilée")
         press(.menu)
         press(.menu)
         log("après 2 × Retour : focus \(focusedID())")

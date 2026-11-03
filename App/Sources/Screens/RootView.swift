@@ -10,7 +10,6 @@ struct RootView: View {
     var body: some View {
         @Bindable var router = router
         ZStack {
-            AmbientBackdrop(color: router.ambient)
             switch app.phase {
             case .launching:
                 ProgressView().tint(Theme.Palette.moon)
@@ -42,6 +41,10 @@ struct RootView: View {
                 .defaultFocus($navFocus, router.selectedTab)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Le fond est un arrière-plan : ses grands cercles flous ne doivent pas agrandir la
+        // mise en page (sinon l'interface dépasse l'écran et la barre du haut disparaît).
+        .background { AmbientBackdrop(color: router.ambient) }
         // Pas de couleur de texte globale : elle s'appliquerait aussi aux champs de saisie
         // focalisés (fond blanc système) et les rendrait illisibles. Le mode sombre suffit.
         .sheet(isPresented: $showCrashReport) {
