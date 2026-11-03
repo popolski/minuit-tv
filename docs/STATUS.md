@@ -14,8 +14,8 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Index EPG, fusion, nettoyage, trous, cache | ✅ | ✅ Linux | ✅ | ⏳ |
 | Fuseaux horaires et changements d'heure | ✅ | ✅ Linux | ✅ | ⏳ |
 | Catalogue, recherche, catégories masquées/réordonnées, adultes | ✅ | ✅ Linux | ✅ | ⏳ |
-| Repli du catalogue par catégorie si la liste complète est refusée | ✅ | ⏳ | ✅ (écrit) | ⏳ |
-| Page d'erreur du fournisseur reconnue à l'abandon d'une chaîne (sondage 4 Ko) | ✅ | ⏳ | ✅ (écrit) | ⏳ |
+| Repli du catalogue par catégorie si la liste complète est refusée | ✅ | ✅ | ✅ | ⏳ |
+| Page d'erreur du fournisseur reconnue à l'abandon d'une chaîne (sondage 4 Ko) | ✅ | ✅ | ✅ (classement) | ⏳ |
 | Favoris, récentes, dernière chaîne (persistance) | ✅ | ✅ Linux | ✅ | ⏳ |
 | Zapping (boucle, rappel, regroupement des appuis) | ✅ | ✅ Linux | ✅ (logique) | ⏳ |
 | Planification moteur × format, mémoire par chaîne | ✅ | ✅ Linux | ✅ | ⏳ |
@@ -32,7 +32,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
 État au 2 novembre 2026 :
-- **84 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
+- **89 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
 - **Application tvOS compilée** par la CI (image `xcode-27`, Xcode 27.1), sans avertissement
   dans le code de Minuit ; IPA vérifiée (arm64, tvOS, frameworks FFmpeg) — Release `build-3`.
 - **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur
