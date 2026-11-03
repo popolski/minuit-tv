@@ -88,7 +88,7 @@ enum CategoryIcon {
             (["cinema", "film", "movie", "ciné"], "film"),
             (["serie", "series"], "tv"),
             (["music", "musique", "radio"], "music.note"),
-            (["enfant", "kids", "jeunesse", "cartoon", "junior"], "figure.and.child.holdhand"),
+            (["enfant", "kids", "jeunesse", "cartoon", "junior"], "sparkles"),
             (["docu", "decouverte", "nature", "science", "histoire"], "leaf"),
             (["meteo", "weather"], "cloud.sun"),
             (["cuisine", "food", "cooking"], "fork.knife"),

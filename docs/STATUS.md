@@ -24,9 +24,9 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
 | Contrôleur de lecture (génération, un seul moteur, veille, réseau) | ✅ | ✅ | ⏳ | ⏳ |
-| Lecteur : télécommande, bandeau, panneaux, transport replay | ✅ | ✅ | ⏳ | ⏳ |
+| Lecteur : télécommande, bandeau, commandes, panneaux, transport replay | ✅ | ✅ | ✅ simulateur (ouverture, commandes, zapping, Retour) | ✅ lecture HD/FHD, zapping, panneaux |
 | Guide TV (grille virtualisée, ligne maintenant, fenêtre glissante) | ✅ | ✅ | ⏳ | ⏳ |
-| Écrans : connexion, accueil, chaînes, recherche, favoris, réglages | ✅ | ✅ | ⏳ | ✅ connexion ; reste à détailler |
+| Interface v2 « verre » : barre du haut, écran Direct, recherche, réglages | ✅ | ✅ | ✅ simulateur (mode démo) | ✅ barre du haut, lecture, zapping (build 10) |
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
 État au 2 novembre 2026 :
@@ -36,6 +36,20 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 - **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur
   Xtream en HTTP OK, application jugée « déjà très fonctionnelle ». Les fonctions sont à
   qualifier une par une (lecture, zapping, guide, replay…).
+
+### Tests d'interface (CI, simulateur tvOS 27.1, mode démo `-uitest`)
+
+Lancement sur le menu (position réelle à l'écran vérifiée), ouverture d'une chaîne,
+commandes du lecteur, zapping, Retour (liste → catégories → menu), liste défilée.
+Les captures sont publiées sur la branche `ci-screenshots`. Le simulateur lit une vidéo
+locale : il ne prouve rien sur les flux réels du fournisseur.
+
+### Retours Apple TV (tvOS 27.2)
+
+- Lecture HD / Full HD OK ; 4K non (probablement côté fournisseur, à confirmer).
+- Zapping fluide ; panneaux ◀ ▶ OK ; guide OK ; veille, réseau : OK.
+- Replay : problème à diagnostiquer (journal `replay` attendu).
+- Build 10 : barre du haut visible (corrigé : le fond agrandissait la mise en page).
 
 ## Limites connues et incertitudes
 

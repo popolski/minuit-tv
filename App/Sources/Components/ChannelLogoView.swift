@@ -134,11 +134,12 @@ struct ChannelLogoView: View {
     var onLoaded: ((PreparedLogo) -> Void)? = nil
 
     @State private var logo: PreparedLogo?
+    @Environment(\.onFocusPill) private var onPill
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size.height * 0.2, style: .continuous)
-                .fill(logo?.tile.background ?? Color.white.opacity(0.1))
+                .fill(logo?.tile.background ?? (onPill ? Theme.Palette.onFocus.opacity(0.08) : Color.white.opacity(0.1)))
             if let logo {
                 Image(uiImage: logo.image)
                     .resizable()
@@ -149,7 +150,7 @@ struct ChannelLogoView: View {
             } else {
                 Text(initials)
                     .font(.system(size: size.height * 0.34, weight: .bold))
-                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .foregroundStyle(onPill ? Theme.Palette.onFocusSecondary : Theme.Palette.textSecondary)
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
                     .padding(6)
