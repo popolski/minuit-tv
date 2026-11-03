@@ -66,10 +66,17 @@ final class MinuitUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["channel-101"].waitForExistence(timeout: 30), "catalogue de démonstration absent")
     }
 
-    /// Descend dans le contenu puis va à droite jusqu'à la liste des chaînes.
+    /// Descend dans la barre latérale, choisit « Toutes les chaînes », puis va à droite
+    /// jusqu'à la liste des chaînes.
     private func focusChannelList() {
         var n = 0
         while focusedID().hasPrefix("nav-") && n < 3 { press(.down); n += 1 }
+        n = 0
+        while focusedID() != "sidebar-Toutes les chaînes" && n < 4 {
+            press(focusedID() == "sidebar-À l'antenne" || focusedID().hasPrefix("nav-") ? .down : .up)
+            n += 1
+        }
+        Thread.sleep(forTimeInterval: 0.5)
         n = 0
         while !focusedID().hasPrefix("channel-") && n < 4 { press(.right); n += 1 }
         log("focus dans la liste : \(focusedID())")
@@ -157,6 +164,39 @@ final class MinuitUITests: XCTestCase {
         press(.select)
         Thread.sleep(forTimeInterval: 1)
         screenshot("11-replay-transport")
+    }
+
+    /// Aperçu vidéo dans la fiche de la chaîne, puis plein écran sans rechargement.
+    func testPreviewThenFullScreen() {
+        launch()
+        waitForCatalog()
+        focusChannelList()
+        press(.down)
+        Thread.sleep(forTimeInterval: 5)
+        assertRunning("aperçu vidéo dans la fiche")
+        screenshot("13-apercu")
+        press(.select)
+        Thread.sleep(forTimeInterval: 2)
+        assertRunning("passage en plein écran")
+        screenshot("14-plein-ecran-depuis-apercu")
+        press(.menu)
+        Thread.sleep(forTimeInterval: 3)
+        assertRunning("retour à la liste")
+        screenshot("15-retour-apres-plein-ecran")
+    }
+
+    /// « À l'antenne » : grandes cartes des chaînes regardées.
+    func testOnAirGrid() {
+        launch(["-demoLastChannel"])
+        waitForCatalog()
+        press(.down)
+        Thread.sleep(forTimeInterval: 1)
+        log("section au lancement : \(focusedID())")
+        press(.right)
+        Thread.sleep(forTimeInterval: 2)
+        log("focus dans la grille : \(focusedID())")
+        screenshot("16-a-l-antenne")
+        XCTAssertTrue(focusedID().hasPrefix("onair-"), "la grille « À l'antenne » doit être focalisable")
     }
 
     /// Écran Diagnostics : mise en page dans l'écran (pas de débordement).

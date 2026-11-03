@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import MinuitCore
 
 @main
@@ -47,8 +48,15 @@ final class AppRouter {
     var selectedTab: Tab = .live
     /// Couleur d'ambiance du fond (halo), suit la chaîne focalisée.
     var ambient: Color = Theme.Palette.moon
-    /// Liste affichée dans l'écran Direct (mémorisée entre les onglets).
-    var liveContext: ChannelListContext = .all
+    /// Image d'ambiance (logo ou image du programme focalisé), très floutée en fond.
+    var ambientImage: UIImage?
+    /// Section affichée dans l'écran Direct (mémorisée entre les onglets) ; nil : choix initial.
+    var liveSection: LiveSection?
+
+    enum LiveSection: Hashable {
+        case onAir
+        case list(ChannelListContext)
+    }
 
     enum Tab: Hashable { case search, live, guide, settings }
 

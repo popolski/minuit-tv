@@ -143,6 +143,11 @@ final class AetherPlayerEngine: PlaybackEngine {
         }
     }
 
+    var isMuted: Bool {
+        get { engine.volume == 0 }
+        set { engine.volume = newValue ? 0 : 1 }
+    }
+
     var fillsScreen: Bool {
         get { engine.videoGravity == .resizeAspectFill }
         set { engine.videoGravity = newValue ? .resizeAspectFill : .resizeAspect }

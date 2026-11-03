@@ -58,6 +58,9 @@ protocol PlaybackEngine: AnyObject {
     /// Détail technique de la dernière erreur (domaine, code, statut HTTP…), pour le diagnostic.
     var lastErrorDetail: String? { get }
 
+    /// Son coupé (aperçu de l'écran Direct).
+    var isMuted: Bool { get set }
+
     /// Recadrage plein écran (aspect fill) plutôt qu'ajustement (aspect fit).
     var fillsScreen: Bool { get set }
 

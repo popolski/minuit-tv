@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import MinuitCore
 
 struct RootView: View {
@@ -47,7 +48,7 @@ struct RootView: View {
         }
         // Le fond est un arrière-plan : ses grands cercles flous ne doivent pas agrandir la
         // mise en page (sinon l'interface dépasse l'écran et la barre du haut disparaît).
-        .background { AmbientBackdrop(color: router.ambient) }
+        .background { AmbientBackdrop(color: router.ambient, image: router.ambientImage) }
         // Pas de couleur de texte globale : elle s'appliquerait aussi aux champs de saisie
         // focalisés (fond blanc système) et les rendrait illisibles. Le mode sombre suffit.
         .sheet(isPresented: $showCrashReport) {
@@ -63,10 +64,23 @@ struct RootView: View {
 /// Fond « verre de nuit » : dégradé bleu nuit et halo coloré flouté qui suit la chaîne focalisée.
 struct AmbientBackdrop: View {
     var color: Color
+    var image: UIImage? = nil
 
     var body: some View {
         ZStack {
             Theme.Palette.backdrop
+            if let image {
+                // Image très floutée : couleur et profondeur, sans détail lisible.
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 1400, height: 900)
+                    .blur(radius: 110)
+                    .opacity(0.5)
+                    .offset(x: 420, y: -120)
+                    .transition(.opacity)
+                    .id(ObjectIdentifier(image))
+            }
             Circle()
                 .fill(color)
                 .frame(width: 1300, height: 1300)
@@ -84,6 +98,7 @@ struct AmbientBackdrop: View {
         }
         .ignoresSafeArea()
         .animation(Theme.Motion.backdrop, value: color)
+        .animation(Theme.Motion.backdrop, value: image.map(ObjectIdentifier.init))
         .allowsHitTesting(false)
     }
 }

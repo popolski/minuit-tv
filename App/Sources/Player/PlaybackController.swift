@@ -113,7 +113,35 @@ final class PlaybackController {
         navigator.tune(channel)
         displayedChannel = channel
         showBanner()
+        // Aperçu déjà en cours sur cette chaîne : passage en plein écran sans recharger.
+        if isPreview, target == .live(channel), phase != .idle {
+            isPreview = false
+            engine?.isMuted = false
+            if hadFirstFrame { app?.recordWatched(channel) }
+            log.log(.info, "lecture", "Aperçu promu en plein écran (\(channel))")
+            return
+        }
+        isPreview = false
         tune(.live(channel))
+    }
+
+    // MARK: Aperçu (écran Direct)
+
+    /// Vrai pendant l'aperçu muet de l'écran Direct. Le même et unique lecteur sert à
+    /// l'aperçu puis au plein écran : jamais deux connexions simultanées au fournisseur.
+    private(set) var isPreview = false
+
+    func startPreview(_ channel: ChannelID) {
+        guard !isPreview || target != .live(channel) else { return }
+        isPreview = true
+        navigator.tune(channel)
+        displayedChannel = channel
+        tune(.live(channel))
+    }
+
+    func stopPreview() {
+        guard isPreview else { return }
+        close()
     }
 
     /// Zapping relatif (+1 suivante, -1 précédente). L'affichage est immédiat ;
@@ -213,7 +241,7 @@ final class PlaybackController {
         case .live(let channel):
             request = EngineLoadRequest(url: client.urls.liveURL(channel: channel, format: attempt.format), format: attempt.format,
                                         mode: .live, userAgent: app.settings.userAgentPreset.value,
-                                        matchContent: app.settings.matchContentFrameRate)
+                                        matchContent: app.settings.matchContentFrameRate && !isPreview)
         case .archive(let channel, let window, let offset):
             guard let session = app.session, let archive else { return }
             let url = client.urls.timeshiftURL(channel: channel, start: window.requestStart, durationMinutes: window.durationMinutes,
@@ -259,6 +287,7 @@ final class PlaybackController {
         view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         hostView.addSubview(view)
         fresh.fillsScreen = fillsScreen
+        fresh.isMuted = isPreview
         engine = fresh
         return fresh
     }
@@ -274,8 +303,10 @@ final class PlaybackController {
             if let ttff = monitor.timeToFirstFrame { statistics.recordFirstFrame(ttff) }
             if case .live(let channel) = target, let attempt = activeAttempt {
                 memory.remember(attempt, for: channel)
-                app?.recordWatched(channel)
+                // La navigation en aperçu ne remplit pas l'historique des chaînes regardées.
+                if !isPreview { app?.recordWatched(channel) }
             }
+            engine?.isMuted = isPreview
             log.log(.info, "lecture", "Première image (\(gen)) via \(activeAttempt?.description ?? "?")")
             stableTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
@@ -425,6 +456,7 @@ final class PlaybackController {
 
     /// Fermeture du lecteur.
     func close() {
+        isPreview = false
         suspendedTarget = nil
         teardown()
         target = nil

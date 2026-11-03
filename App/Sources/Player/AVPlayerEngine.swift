@@ -68,6 +68,7 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
         }
         let player = AVPlayer(playerItem: nil)
         player.automaticallyWaitsToMinimizeStalling = true
+        player.isMuted = isMuted
         player.appliesMediaSelectionCriteriaAutomatically = true
         self.player = player
         self.item = item
@@ -184,6 +185,10 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
             return .network
         }
         return .unknown("\(error.domain) \(error.code)")
+    }
+
+    var isMuted = false {
+        didSet { player?.isMuted = isMuted }
     }
 
     var fillsScreen: Bool {
