@@ -156,6 +156,9 @@ public struct AppSettings: Sendable, Codable, Equatable {
     public var matchContentFrameRate: Bool = true
     public var useXMLTV: Bool = true
     public var epgDaysAhead: Int = 2
+    /// Accepte les certificats HTTPS non vérifiés du fournisseur (flux redirigés vers un
+    /// HTTPS auto-signé). Activé par défaut sur décision de l'utilisateur ; désactivable.
+    public var acceptInvalidStreamCertificates: Bool = true
 
     public init() {}
 
@@ -163,7 +166,7 @@ public struct AppSettings: Sendable, Codable, Equatable {
         // Clé renommée : l'ancienne valeur (activée par défaut) est volontairement ignorée.
         case resumeLastChannelOnLaunch = "resumeLastChannelAtLaunch"
         case enginePreference, transportSecurity, userAgentPreset, catchup, invertZapDirection,
-             showInfoOnZap, matchContentFrameRate, useXMLTV, epgDaysAhead
+             showInfoOnZap, matchContentFrameRate, useXMLTV, epgDaysAhead, acceptInvalidStreamCertificates
     }
 
     /// Décodage tolérant : un réglage absent ou illisible prend sa valeur par défaut au lieu
@@ -181,6 +184,7 @@ public struct AppSettings: Sendable, Codable, Equatable {
         matchContentFrameRate = c.tolerant(.matchContentFrameRate) ?? d.matchContentFrameRate
         useXMLTV = c.tolerant(.useXMLTV) ?? d.useXMLTV
         epgDaysAhead = c.tolerant(.epgDaysAhead) ?? d.epgDaysAhead
+        acceptInvalidStreamCertificates = c.tolerant(.acceptInvalidStreamCertificates) ?? d.acceptInvalidStreamCertificates
     }
 }
 

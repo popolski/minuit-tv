@@ -79,7 +79,10 @@ public final class URLSessionHTTPClient: HTTPClient {
     private let userAgent: String
     private let maxBodyBytes: Int
 
-    public init(userAgent: String, maxBodyBytes: Int = 256 * 1024 * 1024) {
+    /// - Parameter trustsInvalidCertificates: accepte un certificat HTTPS refusé par le
+    ///   système (fournisseurs qui redirigent leurs flux vers un HTTPS auto-signé).
+    ///   Réglage explicite de l'utilisateur ; sans effet hors plateformes Apple.
+    public init(userAgent: String, maxBodyBytes: Int = 256 * 1024 * 1024, trustsInvalidCertificates: Bool = false) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 20
         configuration.timeoutIntervalForResource = 180
@@ -87,7 +90,13 @@ public final class URLSessionHTTPClient: HTTPClient {
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.httpCookieStorage = nil
         configuration.urlCache = nil
+        #if canImport(Darwin)
+        self.session = URLSession(configuration: configuration,
+                                  delegate: trustsInvalidCertificates ? PermissiveTrustDelegate() : nil,
+                                  delegateQueue: nil)
+        #else
         self.session = URLSession(configuration: configuration)
+        #endif
         self.userAgent = userAgent
         self.maxBodyBytes = maxBodyBytes
     }
@@ -164,3 +173,19 @@ public final class URLSessionHTTPClient: HTTPClient {
         }
     }
 }
+
+#if canImport(Darwin)
+/// Accepte le certificat présenté par le serveur même s'il est refusé par le système.
+/// Utilisé uniquement avec le réglage « Accepter les certificats non vérifiés du fournisseur ».
+final class PermissiveTrustDelegate: NSObject, URLSessionDelegate {
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
+                    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let trust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        completionHandler(.useCredential, URLCredential(trust: trust))
+    }
+}
+#endif

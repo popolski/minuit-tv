@@ -79,6 +79,10 @@ final class AetherPlayerEngine: PlaybackEngine {
             .store(in: &cancellables)
     }
 
+    static func applyCertificatePolicy(acceptInvalid: Bool) {
+        EngineTLS.serverTrustEvaluator = acceptInvalid ? { _ in true } : nil
+    }
+
     static func classify(_ info: PlaybackErrorInfo?) -> PlaybackFailure {
         guard let info else { return .unknown("aether") }
         switch info.kind {

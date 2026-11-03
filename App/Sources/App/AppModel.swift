@@ -161,7 +161,9 @@ final class AppModel {
         self.credentials = credentials
         let http: HTTPClient = DemoMode.isEnabled
             ? DemoXtreamHTTPClient()
-            : URLSessionHTTPClient(userAgent: settings.userAgentPreset.value)
+            : URLSessionHTTPClient(userAgent: settings.userAgentPreset.value,
+                                   trustsInvalidCertificates: settings.acceptInvalidStreamCertificates)
+        EngineFactory.applyCertificatePolicy(acceptInvalid: settings.acceptInvalidStreamCertificates)
         client = XtreamClient(credentials: credentials, http: http, policy: settings.transportSecurity)
         serverDisplayName = credentials.server.displayHost
         isSecureConnection = credentials.server.isSecure
@@ -286,6 +288,7 @@ final class AppModel {
         change(&copy)
         guard copy != settings else { return }
         let transportChanged = copy.transportSecurity != settings.transportSecurity || copy.userAgentPreset != settings.userAgentPreset
+            || copy.acceptInvalidStreamCertificates != settings.acceptInvalidStreamCertificates
         settings = copy
         try? settingsStore.save(copy)
         if transportChanged, let credentials { configureClient(credentials) }

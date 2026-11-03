@@ -81,6 +81,14 @@ enum EngineFactory {
         #endif
     }
 
+    /// Politique de certificats d'AetherEngine (ses propres connexions, y compris le relais
+    /// qu'il place devant AVPlayer quand le système refuse une origine).
+    static func applyCertificatePolicy(acceptInvalid: Bool) {
+        #if canImport(AetherEngine)
+        AetherPlayerEngine.applyCertificatePolicy(acceptInvalid: acceptInvalid)
+        #endif
+    }
+
     static func make(_ kind: EngineKind) -> PlaybackEngine? {
         switch kind {
         case .avPlayer:

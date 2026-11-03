@@ -215,6 +215,11 @@ private struct NetworkSettings: View {
                                                                                  set: { v in app.updateSettings { $0.userAgentPreset = v } })) {
                 ForEach(UserAgentPreset.allCases, id: \.self) { Text($0.displayName).tag($0) }
             }
+            Toggle("Accepter les certificats non vérifiés du fournisseur", isOn: Binding(
+                get: { app.settings.acceptInvalidStreamCertificates },
+                set: { v in app.updateSettings { $0.acceptInvalidStreamCertificates = v } }))
+            Text("Certains fournisseurs redirigent leurs flux vers une adresse HTTPS dont le certificat n'est pas reconnu par tvOS : sans ce réglage, ces chaînes ne se lancent pas. Contrepartie : l'identité du serveur n'est plus vérifiée pour ces connexions.")
+                .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
             Text("En HTTP, identifiant et mot de passe circulent en clair dans les URL Xtream (limite du protocole). Ils ne sont jamais écrits dans les journaux de l'application.")
                 .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
         }

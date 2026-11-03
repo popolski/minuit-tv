@@ -128,6 +128,7 @@ final class PersistenceTests: XCTestCase {
         XCTAssertFalse(settings.resumeLastChannelOnLaunch, "reprise automatique désactivée par défaut")
         XCTAssertEqual(settings.enginePreference, .preferAVPlayerHLS, "les réglages valides sont conservés")
         XCTAssertEqual(settings.epgDaysAhead, 2, "valeur illisible → défaut")
+        XCTAssertTrue(settings.acceptInvalidStreamCertificates, "réglage absent des anciennes versions → défaut")
         var changed = AppSettings()
         changed.resumeLastChannelOnLaunch = true
         XCTAssertEqual(try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(changed)), changed)
