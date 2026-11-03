@@ -348,6 +348,8 @@ struct ArtworkView: View {
                     .shadow(color: .black.opacity(0.3), radius: 16, y: 8)
             }
         }
+        // L'illustration garde ses couleurs, même dans une carte focalisée (fond clair).
+        .environment(\.onFocusPill, false)
         .task(id: programme?.imageURL) {
             guard let url = programme?.imageURL else { artwork = nil; return }
             artwork = await LogoCache.shared.logo(for: url)?.image
@@ -433,12 +435,27 @@ private struct OnAirGrid: View {
         .onExitCommand { sidebarFocus.wrappedValue = .onAir }
     }
 
+    /// Favoris d'abord, puis chaînes récentes, complétés par le reste du catalogue
+    /// jusqu'à 9 cartes au minimum (une grille presque vide paraît inachevée).
     private var selection: ([Channel], ChannelListContext, String) {
         let favorites = app.channels(in: .favorites)
-        if !favorites.isEmpty { return (Array(favorites.prefix(24)), .favorites, "sur vos favoris") }
         let recents = app.channels(in: .recents)
-        if !recents.isEmpty { return (Array(recents.prefix(24)), .recents, "sur les chaînes regardées récemment") }
-        return (Array(app.channels(in: .all).prefix(12)), .all, "ajoutez des favoris pour personnaliser")
+        var result: [Channel] = []
+        var seen = Set<ChannelID>()
+        for channel in favorites + recents where seen.insert(channel.id).inserted { result.append(channel) }
+        let personal = result.count
+        if result.count < 9 {
+            for channel in app.channels(in: .all) where result.count < 9 && seen.insert(channel.id).inserted {
+                result.append(channel)
+            }
+        }
+        let subtitle: String
+        switch (favorites.isEmpty, personal) {
+        case (false, _): subtitle = "vos favoris d'abord"
+        case (true, 1...): subtitle = "vos chaînes récentes d'abord · ajoutez des favoris pour personnaliser"
+        default: subtitle = "ajoutez des favoris pour personnaliser"
+        }
+        return (Array(result.prefix(30)), favorites.isEmpty ? .all : .favorites, subtitle)
     }
 }
 

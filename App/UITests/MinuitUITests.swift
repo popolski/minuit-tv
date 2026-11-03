@@ -76,6 +76,9 @@ final class MinuitUITests: XCTestCase {
     private func focusChannelList() {
         var n = 0
         while focusedID().hasPrefix("nav-") && n < 3 { press(.down); n += 1 }
+        // Sur « À l'antenne », le focus peut arriver directement dans la grille.
+        n = 0
+        while focusedID().hasPrefix("onair-") && n < 4 { press(.left); n += 1 }
         n = 0
         while focusedID() != "sidebar-Toutes les chaînes" && n < 4 {
             press(focusedID() == "sidebar-À l'antenne" || focusedID().hasPrefix("nav-") ? .down : .up)
