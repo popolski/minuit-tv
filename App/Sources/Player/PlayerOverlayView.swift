@@ -565,7 +565,8 @@ private struct TransportPanel: View {
             }
         }
         .ignoresSafeArea()
-        .onAppear { focus = 3 }
+        .defaultFocus($focus, 3)
+        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focus = 3 } }
         .onExitCommand { controller.panel = .none }
     }
 

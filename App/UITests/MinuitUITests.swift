@@ -63,7 +63,12 @@ final class MinuitUITests: XCTestCase {
     }
 
     private func waitForCatalog() {
-        XCTAssertTrue(app.descendants(matching: .any)["channel-101"].waitForExistence(timeout: 30), "catalogue de démonstration absent")
+        // Liste des chaînes, ou grille « À l'antenne » sur un appareil déjà utilisé.
+        let list = app.descendants(matching: .any)["channel-101"]
+        let onAir = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'onair-'")).firstMatch
+        let deadline = Date().addingTimeInterval(30)
+        while !list.exists && !onAir.exists && Date() < deadline { Thread.sleep(forTimeInterval: 0.5) }
+        XCTAssertTrue(list.exists || onAir.exists, "catalogue de démonstration absent")
     }
 
     /// Descend dans la barre latérale, choisit « Toutes les chaînes », puis va à droite
@@ -159,11 +164,12 @@ final class MinuitUITests: XCTestCase {
         press(.select)
         Thread.sleep(forTimeInterval: 7)
         assertRunning("lancement d'un replay")
-        log("badge REPLAY visible : \(app.staticTexts["REPLAY"].exists)")
         screenshot("10-replay")
         press(.select)
         Thread.sleep(forTimeInterval: 1)
+        log("barre de transport : badge REPLAY \(app.staticTexts["REPLAY"].exists), focus \(focusedID())")
         screenshot("11-replay-transport")
+        XCTAssertTrue(app.staticTexts["REPLAY"].exists, "le replay doit être en cours (badge REPLAY)")
     }
 
     /// Aperçu vidéo dans la fiche de la chaîne, puis plein écran sans rechargement.
