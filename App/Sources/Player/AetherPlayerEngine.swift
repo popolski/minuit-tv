@@ -80,7 +80,12 @@ final class AetherPlayerEngine: PlaybackEngine {
     }
 
     static func applyCertificatePolicy(acceptInvalid: Bool) {
-        EngineTLS.serverTrustEvaluator = acceptInvalid ? { _ in true } : nil
+        if acceptInvalid {
+            let acceptAll: @Sendable (URLProtectionSpace) -> Bool = { _ in true }
+            EngineTLS.serverTrustEvaluator = acceptAll
+        } else {
+            EngineTLS.serverTrustEvaluator = nil
+        }
     }
 
     static func classify(_ info: PlaybackErrorInfo?) -> PlaybackFailure {
