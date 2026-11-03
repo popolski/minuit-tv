@@ -49,6 +49,23 @@ public struct LibraryPreferences: Sendable, Codable, Equatable {
 
     public init() {}
 
+    enum CodingKeys: String, CodingKey {
+        case favorites, hiddenCategories, categoryOrder, recents, lastChannel, lastCategory, hideAdultContent
+    }
+
+    /// Décodage tolérant : un champ ajouté par une version ultérieure, ou illisible, ne doit
+    /// jamais faire perdre les favoris.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        favorites = c.tolerant(.favorites) ?? []
+        hiddenCategories = c.tolerant(.hiddenCategories) ?? []
+        categoryOrder = c.tolerant(.categoryOrder) ?? []
+        recents = c.tolerant(.recents) ?? []
+        lastChannel = c.tolerant(.lastChannel)
+        lastCategory = c.tolerant(.lastCategory)
+        hideAdultContent = c.tolerant(.hideAdultContent) ?? true
+    }
+
     public func isFavorite(_ id: ChannelID) -> Bool { favorites.contains(id) }
 
     public mutating func toggleFavorite(_ id: ChannelID) {

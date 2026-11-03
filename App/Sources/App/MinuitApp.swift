@@ -7,6 +7,10 @@ struct MinuitApp: App {
     @State private var router = AppRouter()
     @Environment(\.scenePhase) private var scenePhase
 
+    init() {
+        CrashReporter.install()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

@@ -80,6 +80,16 @@ public struct CatchupSettings: Sendable, Codable, Equatable {
     public var confirmedStyle: XtreamURLBuilder.TimeshiftStyle?
 
     public init() {}
+
+    enum CodingKeys: String, CodingKey { case paddingBefore, paddingAfter, confirmedStyle }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = CatchupSettings()
+        paddingBefore = c.tolerant(.paddingBefore) ?? d.paddingBefore
+        paddingAfter = c.tolerant(.paddingAfter) ?? d.paddingAfter
+        confirmedStyle = c.tolerant(.confirmedStyle)
+    }
 }
 
 public enum CatchupEvaluator {

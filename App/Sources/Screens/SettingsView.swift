@@ -230,6 +230,13 @@ private struct DiagnosticsView: View {
     var body: some View {
         let stats = app.playback.statistics
         List {
+            if let crash = CrashReporter.lastReport {
+                Section("Dernière fermeture inattendue") {
+                    Text(crash.prefix(3000))
+                        .font(.system(size: 17, design: .monospaced))
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                }
+            }
             Section("Lecture") {
                 LabeledContent("Moteur actif", value: app.playback.activeAttempt?.description ?? "—")
                 LabeledContent("Détail", value: app.playback.technicalSummary)

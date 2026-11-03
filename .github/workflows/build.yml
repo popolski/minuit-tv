@@ -123,6 +123,65 @@ jobs:
             resolve.log
           retention-days: 14
 
+  ui-tests:
+    name: Tests d'interface (simulateur tvOS, mode démo)
+    runs-on: xcode-27
+    timeout-minutes: 60
+    # Indicatifs : un échec n'empêche pas la publication de l'IPA, mais le journal
+    # montre les étapes et, en cas de fermeture de l'app, le rapport de plantage.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sélection de Xcode
+        run: |
+          sudo xcode-select -s "$XCODE_APP"
+          xcrun simctl list devices available | grep -i "apple tv" || true
+      - name: XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen generate --spec App/project.yml
+      - name: Cache des paquets Swift
+        uses: actions/cache@v4
+        with:
+          path: App/.spm
+          key: spm-xcode27-${{ hashFiles('App/project.yml', 'Package.swift') }}
+          restore-keys: spm-xcode27-
+      - name: xcodebuild test
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -E "Apple TV 4K \(3rd generation\) \(" | grep -v "1080p" | head -n1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          echo "Simulateur : $DEVICE"
+          STATUS=0
+          xcodebuild test \
+            -project App/Minuit.xcodeproj -scheme Minuit \
+            -destination "id=$DEVICE" \
+            -derivedDataPath build/dd-test -clonedSourcePackagesDirPath App/.spm \
+            -skipPackagePluginValidation -skipMacroValidation \
+            -resultBundlePath ui-tests.xcresult \
+            CODE_SIGNING_ALLOWED=NO > ui-tests.log 2>&1 || STATUS=$?
+          grep -E "MINUIT-UITEST|Test Case .*(passed|failed)|error:|crash|Crash|TEST (SUCCEEDED|FAILED)" ui-tests.log | head -n 300 || true
+          echo "xcodebuild test : code de sortie $STATUS"
+          exit $STATUS
+      - name: Rapports de plantage (simulateur)
+        if: always()
+        run: |
+          found=0
+          for f in $(find "$HOME/Library/Logs/DiagnosticReports" -name "Minuit*" -mmin -90 2>/dev/null); do
+            found=1
+            echo "===== $f"
+            head -c 30000 "$f"
+            echo
+          done
+          [ "$found" = 1 ] || echo "Aucun rapport de plantage de Minuit."
+      - name: Résultats
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-tests-${{ github.run_number }}
+          path: |
+            ui-tests.xcresult
+            ui-tests.log
+          retention-days: 14
+
   release:
     name: Publication (Release GitHub)
     # Chaque build réussi de main (et chaque tag v*) publie une Release avec l'IPA :

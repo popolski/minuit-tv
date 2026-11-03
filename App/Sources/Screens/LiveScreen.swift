@@ -74,6 +74,7 @@ private struct LiveSidebar: View {
             }
         }
         .buttonStyle(SidebarButtonStyle(isSelected: router.liveContext == context))
+        .accessibilityIdentifier("sidebar-\(title)")
         .focused(focused, equals: context)
     }
 }
@@ -136,6 +137,7 @@ private struct ChannelListColumn: View {
                             }
                             .buttonStyle(GlassRowButtonStyle(horizontalPadding: 14, verticalPadding: 10))
                             .focused($focused, equals: channel.id)
+                            .accessibilityIdentifier("channel-\(channel.id.rawValue)")
                             .contextMenu {
                                 Button(app.isFavorite(channel.id) ? "Retirer des favoris" : "Ajouter aux favoris") {
                                     app.toggleFavorite(channel.id)

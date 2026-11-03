@@ -79,6 +79,8 @@ final class PlaybackController {
     @ObservationIgnored private var networkAvailable = true
     @ObservationIgnored private let log = DiagnosticsLog.shared
     @ObservationIgnored weak var app: AppModel?
+    /// Mode démo (`-uitest`) : vidéo locale à la place des flux du fournisseur.
+    @ObservationIgnored var mediaOverride: URL?
 
     init() {
         hostView.backgroundColor = .black
@@ -202,7 +204,7 @@ final class PlaybackController {
         }
         engine.onEvent = { [weak self] event in self?.handle(event, generation: gen) }
 
-        let request: EngineLoadRequest
+        var request: EngineLoadRequest
         switch target {
         case .live(let channel):
             request = EngineLoadRequest(url: client.urls.liveURL(channel: channel, format: attempt.format), format: attempt.format,
@@ -216,6 +218,11 @@ final class PlaybackController {
                                         mode: .archive(durationSeconds: Double(window.durationMinutes * 60), startOffset: offset),
                                         userAgent: app.settings.userAgentPreset.value,
                                         matchContent: app.settings.matchContentFrameRate)
+        }
+        if let mediaOverride {
+            // Mode démo / tests d'interface : vidéo locale lue comme un programme fini.
+            request = EngineLoadRequest(url: mediaOverride, format: .hls, mode: .archive(durationSeconds: 60, startOffset: 0),
+                                        userAgent: request.userAgent, matchContent: false)
         }
         log.log(.info, "lecture", "Chargement \(gen) : \(attempt) — \(request.url.absoluteString)")
 

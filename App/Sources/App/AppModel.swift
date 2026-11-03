@@ -30,12 +30,15 @@ final class AppModel {
     @ObservationIgnored private(set) var client: XtreamClient?
 
     @ObservationIgnored private let keychain = KeychainCredentialStore()
-    @ObservationIgnored private let preferencesStore = StoredValue<LibraryPreferences>(key: "library-preferences", storage: UserDefaultsStorage())
-    @ObservationIgnored private let settingsStore = StoredValue<AppSettings>(key: "settings", storage: UserDefaultsStorage())
-    @ObservationIgnored private let sessionStore = StoredValue<XtreamSession>(key: "session", storage: UserDefaultsStorage())
+    @ObservationIgnored private let preferencesStore = StoredValue<LibraryPreferences>(key: "library-preferences", storage: AppModel.storage)
+    @ObservationIgnored private let settingsStore = StoredValue<AppSettings>(key: "settings", storage: AppModel.storage)
+    @ObservationIgnored private let sessionStore = StoredValue<XtreamSession>(key: "session", storage: AppModel.storage)
     @ObservationIgnored private let cache = FileCache.applicationCaches()
     @ObservationIgnored private let log = DiagnosticsLog.shared
     @ObservationIgnored private var credentials: XtreamCredentials?
+
+    /// Préférences en mémoire en mode démo : les tests partent toujours du même état.
+    private static let storage: KeyValueStorage = DemoMode.isEnabled ? InMemoryStorage() : UserDefaultsStorage()
 
     private struct CatalogSnapshot: Codable {
         var categories: [ChannelCategory]
@@ -56,6 +59,14 @@ final class AppModel {
     /// Reconnexion automatique : identifiants du trousseau, catalogue du cache affiché
     /// immédiatement, puis vérification et actualisation en arrière-plan.
     func start() async {
+        if DemoMode.isEnabled {
+            credentials = DemoMode.credentials
+            configureClient(DemoMode.credentials)
+            playback.mediaOverride = DemoMode.mediaURL
+            phase = .loading("Mode démonstration…")
+            await refresh(silently: false)
+            return
+        }
         guard let stored = keychain.load() else {
             phase = .signedOut(message: nil)
             return
@@ -143,7 +154,9 @@ final class AppModel {
 
     private func configureClient(_ credentials: XtreamCredentials) {
         self.credentials = credentials
-        let http = URLSessionHTTPClient(userAgent: settings.userAgentPreset.value)
+        let http: HTTPClient = DemoMode.isEnabled
+            ? DemoXtreamHTTPClient()
+            : URLSessionHTTPClient(userAgent: settings.userAgentPreset.value)
         client = XtreamClient(credentials: credentials, http: http, policy: settings.transportSecurity)
         serverDisplayName = credentials.server.displayHost
         isSecureConnection = credentials.server.isSecure

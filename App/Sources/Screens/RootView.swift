@@ -35,6 +35,8 @@ struct RootView: View {
                     .focusSection()
                     .environment(\.backToTopBar, { navFocus = router.selectedTab })
                 }
+                // Au lancement, le focus est sur la capsule de navigation (le menu).
+                .defaultFocus($navFocus, router.selectedTab)
             }
         }
         // Pas de couleur de texte globale : elle s'appliquerait aussi aux champs de saisie
@@ -157,6 +159,7 @@ private struct NavCapsule: View {
             .frame(minWidth: title == nil ? 44 : 110)
         }
         .buttonStyle(NavSegmentStyle(isSelected: router.selectedTab == tab))
+        .accessibilityIdentifier("nav-\(String(describing: tab))")
         .focused(navFocus, equals: tab)
     }
 }

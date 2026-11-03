@@ -121,6 +121,27 @@ final class PersistenceTests: XCTestCase {
         XCTAssertEqual(decoded, settings)
     }
 
+    func testSettingsDecodingIsTolerant() throws {
+        // Réglages d'une version antérieure : clé de reprise ancienne (ignorée), champ inconnu, champ manquant.
+        let old = Data(#"{"resumeLastChannelOnLaunch":true,"enginePreference":"preferAVPlayerHLS","futureField":42,"epgDaysAhead":"x"}"#.utf8)
+        let settings = try JSONDecoder().decode(AppSettings.self, from: old)
+        XCTAssertFalse(settings.resumeLastChannelOnLaunch, "reprise automatique désactivée par défaut")
+        XCTAssertEqual(settings.enginePreference, .preferAVPlayerHLS, "les réglages valides sont conservés")
+        XCTAssertEqual(settings.epgDaysAhead, 2, "valeur illisible → défaut")
+        var changed = AppSettings()
+        changed.resumeLastChannelOnLaunch = true
+        XCTAssertEqual(try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(changed)), changed)
+    }
+
+    func testPreferencesSurviveSchemaChanges() throws {
+        let stored = Data(#"{"favorites":[101,102],"recents":[5],"lastChannel":5,"unknown":{"a":1},"hiddenCategories":"bad"}"#.utf8)
+        let prefs = try JSONDecoder().decode(LibraryPreferences.self, from: stored)
+        XCTAssertEqual(prefs.favorites, [ChannelID(101), ChannelID(102)], "les favoris ne doivent jamais être perdus")
+        XCTAssertEqual(prefs.lastChannel, ChannelID(5))
+        XCTAssertTrue(prefs.hiddenCategories.isEmpty)
+        XCTAssertTrue(prefs.hideAdultContent)
+    }
+
     func testPreferencesStayWellUnderTVOSDefaultsBudget() throws {
         var prefs = LibraryPreferences()
         for id in 0..<500 { prefs.toggleFavorite(ChannelID(100_000 + id)) }

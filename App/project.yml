@@ -65,3 +65,33 @@ targets:
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"
         CODE_SIGN_IDENTITY: ""
+
+  MinuitUITests:
+    type: bundle.ui-testing
+    platform: tvOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Minuit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.minuit.tv.uitests
+        TEST_TARGET_NAME: Minuit
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: "NO"
+
+schemes:
+  Minuit:
+    build:
+      targets:
+        Minuit: all
+        MinuitUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - MinuitUITests
+    run:
+      config: Debug
+    archive:
+      config: Release

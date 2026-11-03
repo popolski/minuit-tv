@@ -142,7 +142,9 @@ extension CacheEnvelope: Decodable where T: Decodable {}
 
 /// Réglages de l'application.
 public struct AppSettings: Sendable, Codable, Equatable {
-    public var resumeLastChannelOnLaunch: Bool = true
+    /// Reprise automatique de la dernière chaîne au lancement (désactivée par défaut :
+    /// le lancement arrive sur le menu).
+    public var resumeLastChannelOnLaunch: Bool = false
     public var enginePreference: EnginePreference = .automatic
     public var transportSecurity: TransportSecurityPolicy = .allowHTTP
     public var userAgentPreset: UserAgentPreset = .minuit
@@ -156,6 +158,37 @@ public struct AppSettings: Sendable, Codable, Equatable {
     public var epgDaysAhead: Int = 2
 
     public init() {}
+
+    enum CodingKeys: String, CodingKey {
+        // Clé renommée : l'ancienne valeur (activée par défaut) est volontairement ignorée.
+        case resumeLastChannelOnLaunch = "resumeLastChannelAtLaunch"
+        case enginePreference, transportSecurity, userAgentPreset, catchup, invertZapDirection,
+             showInfoOnZap, matchContentFrameRate, useXMLTV, epgDaysAhead
+    }
+
+    /// Décodage tolérant : un réglage absent ou illisible prend sa valeur par défaut au lieu
+    /// de faire échouer la lecture de tous les réglages (mises à jour de l'application).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = AppSettings()
+        resumeLastChannelOnLaunch = c.tolerant(.resumeLastChannelOnLaunch) ?? d.resumeLastChannelOnLaunch
+        enginePreference = c.tolerant(.enginePreference) ?? d.enginePreference
+        transportSecurity = c.tolerant(.transportSecurity) ?? d.transportSecurity
+        userAgentPreset = c.tolerant(.userAgentPreset) ?? d.userAgentPreset
+        catchup = c.tolerant(.catchup) ?? d.catchup
+        invertZapDirection = c.tolerant(.invertZapDirection) ?? d.invertZapDirection
+        showInfoOnZap = c.tolerant(.showInfoOnZap) ?? d.showInfoOnZap
+        matchContentFrameRate = c.tolerant(.matchContentFrameRate) ?? d.matchContentFrameRate
+        useXMLTV = c.tolerant(.useXMLTV) ?? d.useXMLTV
+        epgDaysAhead = c.tolerant(.epgDaysAhead) ?? d.epgDaysAhead
+    }
+}
+
+extension KeyedDecodingContainer {
+    /// Valeur décodée si présente et valide, sinon nil (jamais d'erreur).
+    func tolerant<T: Decodable>(_ key: Key) -> T? {
+        (try? decodeIfPresent(T.self, forKey: key)) ?? nil
+    }
 }
 
 public enum UserAgentPreset: String, Sendable, Codable, CaseIterable {
