@@ -15,9 +15,9 @@ final class MinuitUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private func launch() {
+    private func launch(_ extra: [String] = []) {
         app = XCUIApplication()
-        app.launchArguments = ["-uitest"]
+        app.launchArguments = ["-uitest"] + extra
         app.launch()
     }
 
@@ -102,6 +102,28 @@ final class MinuitUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 2)
         assertRunning("fermeture du lecteur (Retour)")
         screenshot("05-retour-liste")
+    }
+
+    /// Appareil déjà utilisé : la liste démarre sur la dernière chaîne (en bas). La barre du
+    /// haut doit rester visible et atteignable.
+    func testTopBarStaysVisibleWithScrolledList() {
+        launch(["-demoLastChannel"])
+        waitForCatalog()
+        Thread.sleep(forTimeInterval: 1)
+        screenshot("06-lancement-appareil-utilise")
+        focusChannelList()
+        var n = 0
+        while focusedID() != "channel-501" && n < 12 { press(.down); n += 1 }
+        Thread.sleep(forTimeInterval: 1)
+        let nav = app.buttons["nav-live"]
+        log("barre du haut : existe \(nav.exists), cadre \(nav.frame), focus \(focusedID())")
+        screenshot("07-liste-defilee")
+        XCTAssertTrue(nav.exists, "la capsule de navigation doit exister")
+        press(.menu)
+        press(.menu)
+        log("après 2 × Retour : focus \(focusedID())")
+        screenshot("08-retour-menu")
+        XCTAssertTrue(focusedID().hasPrefix("nav-"), "Retour doit mener à la capsule de navigation")
     }
 
     func testBackNavigationReachesMenu() {

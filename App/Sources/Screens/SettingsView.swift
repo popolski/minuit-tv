@@ -44,7 +44,6 @@ struct SettingsView: View {
                     .padding(.vertical, 30)
                     .padding(.horizontal, 12)
                 }
-                .scrollClipDisabled()
                 .focusSection()
             }
             .padding(.horizontal, Theme.Metrics.safeHorizontal)

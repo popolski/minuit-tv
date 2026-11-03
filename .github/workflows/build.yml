@@ -127,6 +127,8 @@ jobs:
     name: Tests d'interface (simulateur tvOS, mode démo)
     runs-on: xcode-27
     timeout-minutes: 60
+    permissions:
+      contents: write
     # Indicatifs : un échec n'empêche pas la publication de l'IPA, mais le journal
     # montre les étapes et, en cas de fermeture de l'app, le rapport de plantage.
     continue-on-error: true
@@ -172,6 +174,22 @@ jobs:
             echo
           done
           [ "$found" = 1 ] || echo "Aucun rapport de plantage de Minuit."
+      - name: Captures d'écran (branche ci-screenshots)
+        # Publiées sur une branche dédiée (non déclencheuse de build) pour la revue visuelle.
+        if: always() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf shots && mkdir shots
+          xcrun xcresulttool export attachments --path ui-tests.xcresult --output-path shots || true
+          ls shots | head -40
+          [ -n "$(ls shots/*.png 2>/dev/null)" ] || { echo "Aucune capture."; exit 0; }
+          cd shots
+          git init -q && git checkout -q -b ci-screenshots
+          echo "Build $GITHUB_RUN_NUMBER — commit $GITHUB_SHA" > README.md
+          git add . && git -c user.name="minuit-ci" -c user.email="minuit-ci@users.noreply.github.com" commit -qm "Captures du build $GITHUB_RUN_NUMBER"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-screenshots
+          echo "Captures publiées sur la branche ci-screenshots."
       - name: Résultats
         if: always()
         uses: actions/upload-artifact@v4

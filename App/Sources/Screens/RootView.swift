@@ -5,6 +5,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
     @FocusState private var navFocus: AppRouter.Tab?
+    @State private var showCrashReport = CrashReporter.lastReport != nil && !DemoMode.isEnabled
 
     var body: some View {
         @Bindable var router = router
@@ -21,6 +22,7 @@ struct RootView: View {
                 VStack(spacing: 0) {
                     TopBar(navFocus: $navFocus)
                         .focusSection()
+                        .zIndex(1)
                     DegradedNotice()
                         .padding(.horizontal, Theme.Metrics.safeHorizontal)
                     Group {
@@ -32,6 +34,7 @@ struct RootView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
                     .focusSection()
                     .environment(\.backToTopBar, { navFocus = router.selectedTab })
                 }
@@ -41,6 +44,9 @@ struct RootView: View {
         }
         // Pas de couleur de texte globale : elle s'appliquerait aussi aux champs de saisie
         // focalisés (fond blanc système) et les rendrait illisibles. Le mode sombre suffit.
+        .sheet(isPresented: $showCrashReport) {
+            CrashReportSheet(report: CrashReporter.lastReport ?? "") { showCrashReport = false }
+        }
         .fullScreenCover(isPresented: $router.isPlayerPresented) {
             PlayerScreen(app: app) { router.isPlayerPresented = false }
                 .ignoresSafeArea()
@@ -112,7 +118,7 @@ private struct TopBar: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide)).capitalized)
                         .font(Theme.Typeface.label(24)).foregroundStyle(Theme.Palette.textPrimary)
-                    Text(accountLine).font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
+                    Text("\(accountLine) · \(buildLabel)").font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
                 }
                 .frame(width: 520, alignment: .trailing)
             }
@@ -130,6 +136,46 @@ private struct TopBar: View {
         }
         let connections = account.maxConnections.map { " · \($0) connexion\($0 > 1 ? "s" : "")" } ?? ""
         return "Abonnement actif\(connections)"
+    }
+}
+
+/// Numéro de build affiché discrètement (diagnostic : quelle version est installée).
+let buildLabel: String = {
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+    let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+    return "v\(version) · build \(build)"
+}()
+
+/// Rapport de plantage affiché automatiquement au lancement suivant.
+private struct CrashReportSheet: View {
+    let report: String
+    let close: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(spacing: 16) {
+                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 44)).foregroundStyle(Theme.Palette.ember)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Minuit s'est fermé de façon inattendue").font(Theme.Typeface.title(36)).foregroundStyle(Theme.Palette.textPrimary)
+                    Text("Prenez une photo de cet écran et envoyez-la : elle indique où l'application s'est arrêtée. \(buildLabel)")
+                        .font(Theme.Typeface.body(22)).foregroundStyle(Theme.Palette.textSecondary)
+                }
+            }
+            ScrollView {
+                Text(report.prefix(2600))
+                    .font(.system(size: 17, design: .monospaced))
+                    .foregroundStyle(Theme.Palette.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .focusable()
+            Button { close() } label: {
+                Text("Fermer").font(Theme.Typeface.label(26)).primaryText()
+            }
+            .buttonStyle(GlassRowButtonStyle(cornerRadius: 40, horizontalPadding: 40, verticalPadding: 14))
+            .fixedSize()
+        }
+        .padding(60)
+        .background(Theme.Palette.backdrop.ignoresSafeArea())
     }
 }
 

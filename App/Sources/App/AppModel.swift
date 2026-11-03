@@ -65,6 +65,11 @@ final class AppModel {
             playback.mediaOverride = DemoMode.mediaURL
             phase = .loading("Mode démonstration…")
             await refresh(silently: false)
+            // Reproduit un appareil déjà utilisé : dernière chaîne regardée en bas de liste.
+            if ProcessInfo.processInfo.arguments.contains("-demoLastChannel") {
+                recordWatched(ChannelID(101))
+                recordWatched(ChannelID(501))
+            }
             return
         }
         guard let stored = keychain.load() else {

@@ -50,7 +50,6 @@ private struct LiveSidebar: View {
             .padding(.vertical, 20)
             .padding(.horizontal, 12)
         }
-        .scrollClipDisabled()
         .defaultFocus(focused, router.liveContext)
         .onExitCommand { backToTopBar() }
         .onChange(of: focused.wrappedValue) { _, value in
@@ -153,7 +152,6 @@ private struct ChannelListColumn: View {
                     .padding(.vertical, 12)
                     .padding(.horizontal, 12)
                 }
-                .scrollClipDisabled()
             }
         }
         .padding(.top, 20)
