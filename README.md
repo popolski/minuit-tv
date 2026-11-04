@@ -15,6 +15,18 @@ direct, zapping, guide des programmes, favoris, replay et « Reprendre au début
   avec repli AVPlayer (HLS).
 - IPA non signée compilée par GitHub Actions à chaque push, publiée en Release, signée et installée par atvloadly.
 
+## Fonctions
+
+- Connexion par identifiants, par lien M3U Xtream, ou depuis le téléphone (QR code et code à 6 chiffres).
+- Accueil en rails : favoris, récentes, thèmes (Sport, Cinéma, Info…) et bouquets.
+- Guide des programmes : changement de groupe direct, aperçu vidéo de la chaîne survolée,
+  source XMLTV supplémentaire (gzip accepté) pour les chaînes non couvertes.
+- Replay et « Reprendre au début », retour au direct, retard affiché par rapport au direct.
+- Versions d'une même chaîne (FHD, HD, 4K…) regroupées, qualité adaptative, bascule automatique
+  vers une autre version en cas d'échec.
+- Reconnexion au fournisseur respectée, diagnostic de connexion intégré au lecteur.
+- Noms de chaînes nettoyés (préfixes de pays, mentions de qualité).
+
 ## Installer
 
 1. Télécharger le dernier IPA : [Releases](https://github.com/popolski/minuit-tv/releases)
