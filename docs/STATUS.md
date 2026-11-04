@@ -29,13 +29,13 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Lecteur : télécommande, bandeau, commandes, panneaux, transport replay | ✅ | ✅ | ✅ simulateur (ouverture, commandes, zapping, Retour) | ✅ lecture HD/FHD, zapping, panneaux |
 | Guide TV (grille virtualisée, ligne maintenant, fenêtre glissante) | ✅ | ✅ | ⏳ | ⏳ |
 | Interface v2 « verre » : barre du haut, écran Direct, recherche, réglages | ✅ | ✅ | ✅ simulateur (mode démo) | ✅ barre du haut, lecture, zapping (build 10) |
-| Bandeau : retard sur le direct après une pause, Retour pour rattraper | ✅ | ⏳ | ✅ (calcul du retard, écrit) | ⏳ |
-| Aide de la télécommande (lecteur, écran Direct) | ✅ | ⏳ | — | ⏳ |
-| Diagnostic réseau local / Internet / fournisseur (panneau Informations, écran d'échec) | ✅ | ⏳ | ✅ (conclusion, écrit) | ⏳ |
+| Bandeau : retard sur le direct après une pause, Retour pour rattraper | ✅ | ✅ | ✅ (calcul du retard) | ⏳ |
+| Aide de la télécommande (lecteur, écran Direct) | ✅ | ✅ | — | ⏳ |
+| Diagnostic réseau local / Internet / fournisseur (panneau Informations, écran d'échec) | ✅ | ✅ | ✅ (conclusion) | ⏳ |
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
 État au 2 novembre 2026 :
-- **89 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
+- **91 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
 - **Application tvOS compilée** par la CI (image `xcode-27`, Xcode 27.1), sans avertissement
   dans le code de Minuit ; IPA vérifiée (arm64, tvOS, frameworks FFmpeg) — Release `build-3`.
 - **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur
