@@ -250,7 +250,8 @@ private struct ChannelDetailPanel: View {
                     HStack(spacing: 10) {
                         Text("Versions").font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
                         ForEach(variants) { variant in
-                            Button { router.watch(variant.id, context: context, app: app) } label: {
+                            // `self.context` : `context` désigne ici celui du TimelineView.
+                            Button { router.watch(variant.id, context: self.context, app: app) } label: {
                                 Text(PlaybackController.qualityLabel(variant) + (variant.id == channel.id ? " · par défaut" : ""))
                                     .font(Theme.Typeface.label(20)).primaryText()
                             }
