@@ -88,7 +88,9 @@ private struct ProgrammeCellContent: View {
     }
 }
 
-/// En-tête de ligne : logo, numéro et nom de la chaîne (collant à gauche).
+/// En-tête de ligne, collant à gauche : numéro et logo seulement, pour laisser la largeur
+/// aux programmes (le nom de la chaîne est dans la fiche en haut du guide). Une chaîne sans
+/// logo garde sa tuile avec son nom (ChannelLogoView).
 final class ChannelHeaderView: UICollectionReusableView {
     static let reuseIdentifier = "channelHeader"
     private var hostingView: UIView?
@@ -96,20 +98,18 @@ final class ChannelHeaderView: UICollectionReusableView {
     func configure(channel: Channel, name: String, isFavorite: Bool) {
         hostingView?.removeFromSuperview()
         let view = UIHostingConfiguration {
-            HStack(spacing: 16) {
-                ChannelLogoView(channel: channel, size: CGSize(width: 100, height: 58))
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        if let number = channel.number {
-                            Text("\(number)").font(Theme.Typeface.time(20)).foregroundStyle(Theme.Palette.textTertiary)
-                        }
-                        if isFavorite { Image(systemName: "star.fill").font(.system(size: 16)).foregroundStyle(Theme.Palette.moon) }
-                    }
-                    Text(name).font(Theme.Typeface.label(23)).lineLimit(2).foregroundStyle(Theme.Palette.textPrimary)
+            HStack(spacing: 10) {
+                VStack(spacing: 6) {
+                    Text(channel.number.map(String.init) ?? " ")
+                        .font(Theme.Typeface.time(20)).foregroundStyle(Theme.Palette.textTertiary)
+                    if isFavorite { Image(systemName: "star.fill").font(.system(size: 14)).foregroundStyle(Theme.Palette.moon) }
                 }
-                Spacer(minLength: 0)
+                .frame(width: 40)
+                ChannelLogoView(channel: channel, size: CGSize(width: 128, height: 72))
             }
-            .padding(.horizontal, 12)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(name)
+            .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.Palette.night.opacity(0.9))
         }

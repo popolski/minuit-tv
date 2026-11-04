@@ -41,6 +41,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Qualité automatique : descend après arrêts répétés, remonte après 15 min stables | ✅ | ✅ | ✅ (politique) | ⏳ |
 | Accueil « À l'antenne » en rangées : vos chaînes, thèmes, marques | ✅ | ✅ | ✅ (marques) | ⏳ |
 | Guide : groupes de chaînes (Favoris, Toutes, Récentes, catégories), légende, grille resserrée | ✅ | ✅ | — | ⏳ |
+| Guide : colonne des chaînes réduite au numéro et au logo (nom dans la fiche) | ✅ | ⏳ | — | ⏳ |
 | Guide XMLTV supplémentaire (adresse, .xml.gz), complète les chaînes non couvertes | ✅ | ✅ | ✅ (gzip) | ⏳ |
 | Noms de chaînes simplifiés (sans préfixe ni qualité), réglable | ✅ | ✅ | ✅ | ⏳ |
 | Aperçu vidéo muet dans la fiche du guide, réglable | ✅ | ✅ | — | ⏳ |
