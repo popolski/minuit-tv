@@ -97,7 +97,7 @@ final class ChannelHeaderView: UICollectionReusableView {
         hostingView?.removeFromSuperview()
         let view = UIHostingConfiguration {
             HStack(spacing: 16) {
-                ChannelLogoView(channel: channel, size: CGSize(width: 110, height: 66))
+                ChannelLogoView(channel: channel, size: CGSize(width: 100, height: 58))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         if let number = channel.number {

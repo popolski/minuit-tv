@@ -16,6 +16,8 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
 
     private(set) var timeline: GuideTimeline
     private var channels: [Channel] = []
+    /// Groupe de chaînes affiché (Favoris, Toutes, une catégorie…).
+    private(set) var context: ChannelListContext = .all
     private var slotCache: [Int: [EPGSlot]] = [:]
     private var lastRevision = -1
     private var fetchWorkItem: DispatchWorkItem?
@@ -59,7 +61,7 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         observing = true
-        if channels.count != app.channels(in: .all).count { reloadChannels() }
+        if channels.count != app.channels(in: context).count { reloadChannels() }
         scrollToNow(animated: false)
         requestVisibleEPG()
     }
@@ -71,8 +73,18 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
 
     // MARK: Données
 
+    /// Change de groupe : liste rechargée, retour en haut, même heure.
+    func setContext(_ newContext: ChannelListContext) {
+        guard newContext != context || !isViewLoaded else { return }
+        context = newContext
+        guard isViewLoaded else { return }
+        reloadChannels()
+        collectionView.setContentOffset(CGPoint(x: collectionView.contentOffset.x, y: 0), animated: false)
+        requestVisibleEPG()
+    }
+
     func reloadChannels() {
-        channels = app.channels(in: .all)
+        channels = app.channels(in: context)
         slotCache.removeAll()
         layout.invalidateRows()
         collectionView?.reloadData()
@@ -180,7 +192,7 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
                                  hasReplay: availability.window != nil && !programme.isAiring(at: now),
                                  isGap: false, progress: programme.progress(at: now)))
         case .gap(let interval):
-            cell.configure(.init(title: "Programme non communiqué", timeText: interval.start.clockText,
+            cell.configure(.init(title: "Non communiqué", timeText: interval.start.clockText,
                                  isNow: interval.contains(now), isPast: interval.end <= now,
                                  hasReplay: false, isGap: true, progress: 0))
         }
@@ -288,39 +300,45 @@ struct GuideScreen: View {
     @State private var focus: (programme: Programme?, channel: Channel)?
     @State private var pendingChoice: ProgrammeDetailView.Choice?
 
+    /// Groupe affiché : celui choisi la dernière fois, sinon les favoris s'il y en a.
+    private var context: ChannelListContext {
+        router.guideContext ?? (app.preferences.favorites.isEmpty ? .all : .favorites)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 24) {
-                TimelineView(.periodic(from: .now, by: 30)) { context in
-                    Text(DayLabel.label(for: context.date, relativeTo: context.date, timeZone: .current))
-                        .font(Theme.Typeface.title(36)).foregroundStyle(Theme.Palette.textPrimary)
-                    Text(context.date.clockText).font(Theme.Typeface.time(30)).foregroundStyle(Theme.Palette.textSecondary)
+        VStack(alignment: .leading, spacing: 14) {
+            // Une seule ligne de commandes : groupes de chaînes à gauche, heures à droite.
+            HStack(spacing: 18) {
+                GuideGroupBar(app: app, selected: context) { group in
+                    router.guideContext = group
+                    focus = nil
+                    proxy.controller?.setContext(group)
                 }
-                Spacer()
                 guideButton("Plus tôt", "chevron.left") { proxy.controller?.shiftWindow(byHours: -6) }
                 guideButton("Maintenant", "dot.radiowaves.left.and.right") { proxy.controller?.jumpToNow() }
                 guideButton("Plus tard", "chevron.right") { proxy.controller?.shiftWindow(byHours: 6) }
             }
-            .font(Theme.Typeface.label(24))
             .padding(.horizontal, Theme.Metrics.safeHorizontal)
             .focusSection()
 
             GuideFocusHeader(app: app, programme: focus?.programme, channel: focus?.channel)
                 .padding(.horizontal, Theme.Metrics.safeHorizontal)
 
-            GuideGrid(app: app, proxy: proxy, onBack: backToTopBar, onFocus: { focus = ($0, $1) }) { programme, channel in
-                guard let programme else {
-                    router.watch(channel.id, context: .all, app: app)
-                    return
-                }
-                if programme.isAiring(at: Date()) {
-                    router.watch(channel.id, context: .all, app: app)
-                } else {
+            if app.channels(in: context).isEmpty {
+                Text(context == .favorites ? "Aucun favori : maintenez OK sur une chaîne pour l’ajouter." : "Aucune chaîne dans ce groupe.")
+                    .font(Theme.Typeface.body(26)).foregroundStyle(Theme.Palette.textSecondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                GuideGrid(app: app, proxy: proxy, context: context, onBack: backToTopBar, onFocus: { focus = ($0, $1) }) { programme, channel in
+                    guard let programme, !programme.isAiring(at: Date()) else {
+                        router.watch(channel.id, context: context, app: app)
+                        return
+                    }
                     selected = (programme, channel)
                     showDetail = true
                 }
+                .focusSection()
             }
-            .focusSection()
         }
         .padding(.top, 10)
         .onExitCommand { backToTopBar() }
@@ -330,7 +348,7 @@ struct GuideScreen: View {
             pendingChoice = nil
             switch choice {
             case .replay: router.watchArchive(selected.programme, app: app)
-            case .live: router.watch(selected.channel.id, context: .all, app: app)
+            case .live: router.watch(selected.channel.id, context: context, app: app)
             }
         }) {
             if let selected {
@@ -371,7 +389,7 @@ private struct GuideFocusHeader: View {
                                                                              settings: app.settings.catchup)
                                 if availability.window != nil { StatusBadge(kind: .replay) }
                             }
-                            Text("\(channel.name) · \(programme.start.clockText) – \(programme.end.clockText)")
+                            Text("\(channel.name) · \(DayLabel.label(for: programme.start, relativeTo: now, timeZone: .current)) · \(programme.start.clockText) – \(programme.end.clockText)")
                                 .font(Theme.Typeface.time(22)).foregroundStyle(Theme.Palette.textSecondary)
                         }
                         Text(programme.title).font(Theme.Typeface.programme(42)).foregroundStyle(Theme.Palette.textPrimary).lineLimit(1)
@@ -387,9 +405,82 @@ private struct GuideFocusHeader: View {
                     .font(Theme.Typeface.body(24)).foregroundStyle(Theme.Palette.textTertiary)
                 Spacer(minLength: 0)
             }
+            legend
         }
         .frame(height: 150, alignment: .top)
         .animation(Theme.Motion.standard, value: programme?.id)
+    }
+
+    /// Ce que signifient les repères de la grille, et ce que fait OK.
+    private var legend: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Circle().fill(Theme.Palette.ember).frame(width: 10, height: 10)
+                Text("En cours · OK : regarder")
+            }
+            HStack(spacing: 10) {
+                Image(systemName: "clock.arrow.circlepath").foregroundStyle(Theme.Palette.archive)
+                Text("Replay · OK : fiche et lecture")
+            }
+            HStack(spacing: 10) {
+                Image(systemName: "line.3.horizontal").foregroundStyle(Theme.Palette.textSecondary)
+                Text("▲ en haut : groupes de chaînes")
+            }
+        }
+        .font(Theme.Typeface.caption(19))
+        .foregroundStyle(Theme.Palette.textSecondary)
+        .fixedSize()
+    }
+}
+
+/// Groupes de chaînes du guide : Favoris, Toutes, Récentes, puis les catégories visibles.
+/// Un clic change le groupe ; le groupe choisi est entouré.
+private struct GuideGroupBar: View {
+    let app: AppModel
+    let selected: ChannelListContext
+    let onSelect: (ChannelListContext) -> Void
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 12) {
+                    ForEach(groups, id: \.context) { group in
+                        Button { onSelect(group.context) } label: {
+                            HStack(spacing: 8) {
+                                if let icon = group.icon { Image(systemName: icon).font(.system(size: 18, weight: .semibold)) }
+                                Text(group.title).font(Theme.Typeface.label(22)).lineLimit(1)
+                            }
+                            .primaryText()
+                        }
+                        .buttonStyle(GlassRowButtonStyle(cornerRadius: 26, horizontalPadding: 20, verticalPadding: 10))
+                        .overlay(Capsule().strokeBorder(Theme.Palette.moon.opacity(group.context == selected ? 0.9 : 0), lineWidth: 2))
+                        .fixedSize()
+                        .id(group.context)
+                    }
+                }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 4)
+            }
+            .scrollClipDisabled()
+            .onAppear { proxy.scrollTo(selected, anchor: .center) }
+        }
+    }
+
+    private struct Group {
+        let context: ChannelListContext
+        let title: String
+        let icon: String?
+    }
+
+    private var groups: [Group] {
+        var result: [Group] = []
+        if !app.preferences.favorites.isEmpty { result.append(Group(context: .favorites, title: "Favoris", icon: "star.fill")) }
+        result.append(Group(context: .all, title: "Toutes", icon: nil))
+        if !app.preferences.recents.isEmpty { result.append(Group(context: .recents, title: "Récentes", icon: "clock.arrow.circlepath")) }
+        for category in app.library.visibleCategories(preferences: app.preferences) {
+            result.append(Group(context: .category(category.id), title: category.name, icon: nil))
+        }
+        return result
     }
 }
 
@@ -401,17 +492,21 @@ final class GuideProxy {
 private struct GuideGrid: UIViewControllerRepresentable {
     let app: AppModel
     let proxy: GuideProxy
+    let context: ChannelListContext
     let onBack: () -> Void
     let onFocus: (Programme?, Channel) -> Void
     let onSelect: (Programme?, Channel) -> Void
 
     func makeUIViewController(context: Context) -> GuideViewController {
         let controller = GuideViewController(app: app, onSelect: onSelect)
+        controller.setContext(self.context)
         controller.onBack = onBack
         controller.onFocus = onFocus
         proxy.controller = controller
         return controller
     }
 
-    func updateUIViewController(_ controller: GuideViewController, context: Context) {}
+    func updateUIViewController(_ controller: GuideViewController, context: Context) {
+        controller.setContext(self.context)
+    }
 }

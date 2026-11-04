@@ -19,9 +19,9 @@ final class GuideLayout: UICollectionViewLayout {
 
     weak var dataSource: GuideLayoutDataSource?
 
-    let rowHeight: CGFloat = 104
+    let rowHeight: CGFloat = 92
     let rowSpacing: CGFloat = 8
-    let channelColumnWidth: CGFloat = 400
+    let channelColumnWidth: CGFloat = 360
     let timeHeaderHeight: CGFloat = 64
     let itemGap: CGFloat = 6
 

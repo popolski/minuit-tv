@@ -52,6 +52,8 @@ final class AppRouter {
     var ambientImage: UIImage?
     /// Section affichée dans l'écran Direct (mémorisée entre les onglets) ; nil : choix initial.
     var liveSection: LiveSection?
+    /// Groupe de chaînes affiché dans le guide (mémorisé entre les onglets) ; nil : choix initial.
+    var guideContext: ChannelListContext?
 
     enum LiveSection: Hashable {
         case onAir
