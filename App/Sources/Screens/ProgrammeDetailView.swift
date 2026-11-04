@@ -21,7 +21,7 @@ struct ProgrammeDetailView: View {
         HStack(alignment: .top, spacing: 60) {
             VStack(alignment: .leading, spacing: 20) {
                 ChannelLogoView(channel: channel, size: CGSize(width: 240, height: 144))
-                Text(channel.name).font(Theme.Typeface.label(26)).foregroundStyle(Theme.Palette.textSecondary)
+                Text(app.displayName(channel)).font(Theme.Typeface.label(26)).foregroundStyle(Theme.Palette.textSecondary)
             }
             VStack(alignment: .leading, spacing: 18) {
                 Text(DayLabel.label(for: programme.start, relativeTo: Date(), timeZone: .current)

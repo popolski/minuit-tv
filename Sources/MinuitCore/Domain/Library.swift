@@ -330,3 +330,19 @@ public enum ChannelBrands {
             .map(\.1)
     }
 }
+
+/// Nom de chaîne présenté à l'écran : sans préfixe fournisseur (« FR: », « |FR| ») ni
+/// mentions de qualité (« FHD », « 4K », « ᴴᴰ », « [Backup] »), reprises par des badges.
+/// Le nom d'origine reste utilisé pour la recherche, le guide et le regroupement.
+public enum ChannelNameCleaner {
+    public static func clean(_ name: String) -> String {
+        let text = SearchNormalizer.stripProviderPrefix(QualityBadge.expandingSuperscripts(name))
+        let kept = text.split(separator: " ").filter { token in
+            let words = SearchNormalizer.normalize(String(token)).split(separator: " ")
+            // Ponctuation seule (« | », « - ») ou mentions de qualité seules : retirées.
+            return !words.allSatisfy { ChannelVariants.qualityTokens.contains(String($0)) }
+        }
+        let cleaned = kept.joined(separator: " ").trimmingCharacters(in: CharacterSet(charactersIn: " |-–:·"))
+        return cleaned.isEmpty ? name.trimmingCharacters(in: .whitespaces) : cleaned
+    }
+}

@@ -241,7 +241,7 @@ private struct ChannelDetailPanel: View {
                     if let number = channel.number {
                         Text("\(number)").font(Theme.Typeface.time(24)).foregroundStyle(Theme.Palette.textTertiary)
                     }
-                    Text(channel.name).font(Theme.Typeface.label(28)).foregroundStyle(Theme.Palette.textPrimary).lineLimit(1)
+                    Text(app.displayName(channel)).font(Theme.Typeface.label(28)).foregroundStyle(Theme.Palette.textPrimary).lineLimit(1)
                     if let quality = QualityBadge.parse(channel.name) { MetaTag(text: quality.rawValue) }
                     if channel.hasAnnouncedArchive { MetaTag(text: "Replay", systemImage: "clock.arrow.circlepath") }
                 }
@@ -299,11 +299,13 @@ private struct ChannelDetailPanel: View {
 }
 
 /// Cadre d'aperçu 16:9 : vidéo en direct (muette) quand l'aperçu concerne cette chaîne,
-/// sinon image du programme ou tuile du logo.
-private struct PreviewBox: View {
+/// sinon image du programme ou tuile du logo. Partagé avec la fiche du guide (format réduit).
+struct PreviewBox: View {
     @Environment(AppModel.self) private var app
     let channel: Channel
     let programme: Programme?
+    var size = CGSize(width: 600, height: 338)
+    var showsHint = true
 
     var body: some View {
         let controller = app.playback
@@ -336,17 +338,17 @@ private struct PreviewBox: View {
                     }
                 }
                 Spacer()
-                HStack {
+                if showsHint { HStack {
                     Spacer()
                     Label("Clic central : plein écran", systemImage: "arrow.up.left.and.arrow.down.right")
                         .font(Theme.Typeface.caption(17)).foregroundStyle(.white.opacity(0.85))
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(Capsule().fill(Color.black.opacity(0.45)))
-                }
+                } }
             }
             .padding(14)
         }
-        .frame(width: 600, height: 338)
+        .frame(width: size.width, height: size.height)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
         .shadow(color: .black.opacity(0.35), radius: 24, y: 12)
@@ -545,7 +547,7 @@ private struct OnAirCard: View {
                 LinearGradient(colors: [.clear, Color.black.opacity(0.55)], startPoint: .center, endPoint: .bottom)
                 HStack(spacing: 10) {
                     Circle().fill(Theme.Palette.ember).frame(width: 10, height: 10)
-                    Text(channel.name).font(Theme.Typeface.caption(20).weight(.semibold)).foregroundStyle(.white).lineLimit(1)
+                    Text(app.displayName(channel)).font(Theme.Typeface.caption(20).weight(.semibold)).foregroundStyle(.white).lineLimit(1)
                 }
                 .padding(14)
             }
@@ -580,7 +582,7 @@ struct ChannelRowContent: View {
             ChannelLogoView(channel: channel, size: logoSize)
             VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 12) {
-                    Text(channel.name).font(Theme.Typeface.label(26)).lineLimit(1).primaryText()
+                    Text(app.displayName(channel)).font(Theme.Typeface.label(26)).lineLimit(1).primaryText()
                     if app.isFavorite(channel.id) {
                         Image(systemName: "star.fill").font(.system(size: 17)).foregroundStyle(Theme.Palette.moon)
                     }

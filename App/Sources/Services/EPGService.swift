@@ -20,6 +20,7 @@ final class EPGService {
     @ObservationIgnored private var channels: [Channel] = []
     @ObservationIgnored private var useXMLTV = true
     @ObservationIgnored private var daysAhead = 2
+    @ObservationIgnored private var customURL: URL?
     @ObservationIgnored private let policy = EPGRefreshPolicy()
     @ObservationIgnored private let cache = FileCache.applicationCaches()
     @ObservationIgnored private var pending: [ChannelID] = []
@@ -37,12 +38,24 @@ final class EPGService {
         self.channels = channels
         self.useXMLTV = settings.useXMLTV
         self.daysAhead = settings.epgDaysAhead
+        let custom = settings.customXMLTVURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.customURL = custom.isEmpty ? nil : URL(string: custom).flatMap { ["http", "https"].contains($0.scheme?.lowercased()) ? $0 : nil }
         if index.channelCount == 0, let cached = cache.read(EPGIndex.self, name: Self.cacheName) {
             index = cached.value
             lastFullRefresh = cache.read(Date.self, name: Self.metaName)?.value
             pruneOld()
             revision += 1
         }
+    }
+
+    /// Réglages du guide modifiés : un changement de guide personnalisé relance l'import.
+    func applySettings(_ settings: AppSettings) {
+        let previous = customURL
+        useXMLTV = settings.useXMLTV
+        daysAhead = settings.epgDaysAhead
+        let custom = settings.customXMLTVURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        customURL = custom.isEmpty ? nil : URL(string: custom).flatMap { ["http", "https"].contains($0.scheme?.lowercased()) ? $0 : nil }
+        if customURL != previous { refreshFullIfNeeded(force: true) }
     }
 
     func reset() {
@@ -111,22 +124,25 @@ final class EPGService {
         scheduleSave()
     }
 
-    /// Import XMLTV complet en arrière-plan, si activé et si le cache a expiré.
+    /// Import XMLTV complet en arrière-plan (guide du fournisseur, puis guide personnalisé
+    /// pour les chaînes qu'il ne couvre pas), si activé et si le cache a expiré.
     func refreshFullIfNeeded(force: Bool = false) {
-        guard useXMLTV, let client, !isImportingXMLTV else { return }
+        guard useXMLTV || customURL != nil, let client, !isImportingXMLTV else { return }
         guard force || policy.needsFullRefresh(lastFull: lastFullRefresh, now: Date()) else { return }
         isImportingXMLTV = true
         let channels = self.channels
         let window = DateInterval(start: Date().addingTimeInterval(-Double(maxArchiveDays()) * 86_400),
                                   end: Date().addingTimeInterval(Double(daysAhead) * 86_400))
         let log = self.log
+        let useProvider = useXMLTV
+        let customURL = self.customURL
         Task { [weak self] in
             // Téléchargement et analyse hors du fil principal ; application du résultat ensuite.
             let (finalSummary, finalMapped) = await Task.detached(priority: .utility) { () -> (String, [ChannelID: [Programme]]) in
             let started = Date()
-            var summary: String
+            var summary = ""
             var mapped: [ChannelID: [Programme]] = [:]
-            do {
+            if useProvider { do {
                 let data = try await client.downloadXMLTV()
                 let options = XMLTVParser.Options(channelKeys: EPGImporter.channelKeys(for: channels), window: window)
                 let document = try XMLTVParser.parse(data, options: options)
@@ -142,6 +158,12 @@ final class EPGService {
             } catch {
                 summary = "XMLTV illisible"
                 log.log(.warning, "epg", "XMLTV illisible : \(error)")
+            } }
+            if let customURL {
+                let custom = await Self.importCustom(customURL, http: client.http, channels: channels, window: window,
+                                                     alreadyCovered: Set(mapped.keys), log: log)
+                mapped.merge(custom.programmes) { current, _ in current }
+                summary += (summary.isEmpty ? "" : " · ") + custom.summary
             }
             return (summary, mapped)
             }.value
@@ -158,6 +180,38 @@ final class EPGService {
                 self.revision += 1
                 self.scheduleSave()
             }
+        }
+    }
+
+    /// Guide personnalisé : téléchargé (gzip accepté), analysé, appliqué seulement aux chaînes
+    /// que le guide du fournisseur n'a pas couvertes. L'adresse n'est jamais journalisée en entier.
+    private nonisolated static func importCustom(_ url: URL, http: HTTPClient, channels: [Channel], window: DateInterval,
+                                                 alreadyCovered: Set<ChannelID>, log: DiagnosticsLog) async -> (programmes: [ChannelID: [Programme]], summary: String) {
+        let host = url.host ?? "?"
+        do {
+            let response = try await http.send(HTTPRequest(url: url, timeout: 120))
+            guard (200..<300).contains(response.statusCode) else {
+                log.log(.warning, "epg", "Guide personnalisé (\(host)) : HTTP \(response.statusCode)")
+                return ([:], "Guide personnalisé : erreur \(response.statusCode)")
+            }
+            var data = response.body
+            if GzipContainer.isGzip(data) {
+                guard let range = GzipContainer.deflateRange(data),
+                      let inflated = try? (data.subdata(in: range) as NSData).decompressed(using: .zlib) as Data else {
+                    return ([:], "Guide personnalisé : archive gzip illisible")
+                }
+                data = inflated
+            }
+            let remaining = channels.filter { !alreadyCovered.contains($0.id) }
+            let options = XMLTVParser.Options(channelKeys: EPGImporter.channelKeys(for: remaining), window: window)
+            let document = try XMLTVParser.parse(data, options: options)
+            let result = EPGImporter.map(document, to: remaining)
+            let summary = "Guide personnalisé (\(host)) : \(result.programmes.count) chaînes complétées (\(result.matchedByName) par nom)"
+            log.log(.info, "epg", summary)
+            return (result.programmes, summary)
+        } catch {
+            log.log(.warning, "epg", "Guide personnalisé (\(host)) illisible : \(error)")
+            return ([:], "Guide personnalisé indisponible")
         }
     }
 

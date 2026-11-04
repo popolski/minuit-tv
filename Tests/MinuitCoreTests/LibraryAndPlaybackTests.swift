@@ -418,3 +418,35 @@ final class FeaturesFromAnalysisTests: XCTestCase {
         XCTAssertEqual(verdict, .stalled, "reconnexion abandonnée par le moteur : Minuit reprend la main")
     }
 }
+
+final class ChillioIdeasTests: XCTestCase {
+    func testChannelNamesAreCleanedForDisplay() {
+        XCTAssertEqual(ChannelNameCleaner.clean("FR: TF1 FHD"), "TF1")
+        XCTAssertEqual(ChannelNameCleaner.clean("|FR| M6 ᴴᴰ"), "M6")
+        XCTAssertEqual(ChannelNameCleaner.clean("France 2 (4K) [Backup]"), "France 2")
+        XCTAssertEqual(ChannelNameCleaner.clean("RMC Sport 1 FHD+ | HEVC"), "RMC Sport 1")
+        XCTAssertEqual(ChannelNameCleaner.clean("Canal+ 4K"), "Canal+")
+        XCTAssertEqual(ChannelNameCleaner.clean("TF1 Séries Films"), "TF1 Séries Films")
+        XCTAssertEqual(ChannelNameCleaner.clean("HD"), "HD", "rien de lisible : nom d'origine")
+    }
+
+    func testGzipHeaderLocatesDeflateStream() {
+        // En-tête minimal + FNAME « guide.xml », flux DEFLATE factice, pied de 8 octets.
+        var data = Data([0x1f, 0x8b, 8, 0x08, 0, 0, 0, 0, 0, 3])
+        data.append(contentsOf: Array("guide.xml".utf8) + [0])
+        let payloadStart = data.count
+        data.append(contentsOf: [1, 2, 3, 4, 5])
+        data.append(contentsOf: [UInt8](repeating: 0, count: 8))
+        XCTAssertTrue(GzipContainer.isGzip(data))
+        XCTAssertEqual(GzipContainer.deflateRange(data), payloadStart..<(payloadStart + 5))
+        XCTAssertFalse(GzipContainer.isGzip(Data("<?xml version=\"1.0\"?><tv></tv>".utf8)))
+        XCTAssertNil(GzipContainer.deflateRange(Data([0x1f, 0x8b, 8, 0])))
+    }
+
+    func testNewSettingsDecodeWithDefaults() throws {
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8))
+        XCTAssertTrue(decoded.cleanChannelNames)
+        XCTAssertTrue(decoded.guidePreview)
+        XCTAssertEqual(decoded.customXMLTVURL, "")
+    }
+}

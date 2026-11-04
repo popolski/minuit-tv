@@ -161,6 +161,13 @@ public struct AppSettings: Sendable, Codable, Equatable {
     public var acceptInvalidStreamCertificates: Bool = true
     /// Change seul de version d'une chaîne (HD, FHD, 4K) selon la tenue du flux.
     public var adaptiveQuality: Bool = true
+    /// Guide XMLTV supplémentaire (adresse saisie par l'utilisateur) : complète les chaînes
+    /// que le guide du fournisseur ne couvre pas. Vide : aucun.
+    public var customXMLTVURL: String = ""
+    /// Noms de chaînes affichés sans préfixe fournisseur ni mentions de qualité.
+    public var cleanChannelNames: Bool = true
+    /// Aperçu vidéo muet de la chaîne focalisée dans le guide.
+    public var guidePreview: Bool = true
 
     public init() {}
 
@@ -168,7 +175,8 @@ public struct AppSettings: Sendable, Codable, Equatable {
         // Clé renommée : l'ancienne valeur (activée par défaut) est volontairement ignorée.
         case resumeLastChannelOnLaunch = "resumeLastChannelAtLaunch"
         case enginePreference, transportSecurity, userAgentPreset, catchup, invertZapDirection,
-             showInfoOnZap, matchContentFrameRate, useXMLTV, epgDaysAhead, acceptInvalidStreamCertificates, adaptiveQuality
+             showInfoOnZap, matchContentFrameRate, useXMLTV, epgDaysAhead, acceptInvalidStreamCertificates, adaptiveQuality,
+             customXMLTVURL, cleanChannelNames, guidePreview
     }
 
     /// Décodage tolérant : un réglage absent ou illisible prend sa valeur par défaut au lieu
@@ -188,6 +196,9 @@ public struct AppSettings: Sendable, Codable, Equatable {
         epgDaysAhead = c.tolerant(.epgDaysAhead) ?? d.epgDaysAhead
         acceptInvalidStreamCertificates = c.tolerant(.acceptInvalidStreamCertificates) ?? d.acceptInvalidStreamCertificates
         adaptiveQuality = c.tolerant(.adaptiveQuality) ?? d.adaptiveQuality
+        customXMLTVURL = c.tolerant(.customXMLTVURL) ?? d.customXMLTVURL
+        cleanChannelNames = c.tolerant(.cleanChannelNames) ?? d.cleanChannelNames
+        guidePreview = c.tolerant(.guidePreview) ?? d.guidePreview
     }
 }
 

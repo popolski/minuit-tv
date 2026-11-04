@@ -257,6 +257,11 @@ final class AppModel {
 
     func isFavorite(_ id: ChannelID) -> Bool { preferences.isFavorite(id) }
 
+    /// Nom affiché : nettoyé (sans « FR: » ni « FHD ») si le réglage est actif.
+    func displayName(_ channel: Channel) -> String {
+        settings.cleanChannelNames ? ChannelNameCleaner.clean(channel.name) : channel.name
+    }
+
     func toggleFavorite(_ id: ChannelID) {
         var prefs = preferences
         prefs.toggleFavorite(id)
@@ -320,6 +325,7 @@ final class AppModel {
         settings = copy
         try? settingsStore.save(copy)
         if transportChanged, let credentials { configureClient(credentials) }
+        epg.applySettings(copy)
     }
 
     func clearCaches() {

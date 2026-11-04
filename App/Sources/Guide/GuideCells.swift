@@ -93,7 +93,7 @@ final class ChannelHeaderView: UICollectionReusableView {
     static let reuseIdentifier = "channelHeader"
     private var hostingView: UIView?
 
-    func configure(channel: Channel, isFavorite: Bool) {
+    func configure(channel: Channel, name: String, isFavorite: Bool) {
         hostingView?.removeFromSuperview()
         let view = UIHostingConfiguration {
             HStack(spacing: 16) {
@@ -105,7 +105,7 @@ final class ChannelHeaderView: UICollectionReusableView {
                         }
                         if isFavorite { Image(systemName: "star.fill").font(.system(size: 16)).foregroundStyle(Theme.Palette.moon) }
                     }
-                    Text(channel.name).font(Theme.Typeface.label(23)).lineLimit(2).foregroundStyle(Theme.Palette.textPrimary)
+                    Text(name).font(Theme.Typeface.label(23)).lineLimit(2).foregroundStyle(Theme.Palette.textPrimary)
                 }
                 Spacer(minLength: 0)
             }

@@ -171,7 +171,7 @@ private struct LiveChrome: View {
                     if let number = channel.number {
                         Text("\(number)").font(Theme.Typeface.time(28)).foregroundStyle(Theme.Palette.textSecondary)
                     }
-                    Text(channel.name).font(Theme.Typeface.label(32)).foregroundStyle(Theme.Palette.textPrimary)
+                    Text(app.displayName(channel)).font(Theme.Typeface.label(32)).foregroundStyle(Theme.Palette.textPrimary)
                     if app.isFavorite(channel.id) {
                         Image(systemName: "star.fill").font(.system(size: 20)).foregroundStyle(Theme.Palette.moon)
                     }
@@ -492,7 +492,7 @@ private struct ProgrammePanel: View {
                     HStack(spacing: 18) {
                         ChannelLogoView(channel: channel, size: CGSize(width: 110, height: 62))
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(channel.name).font(Theme.Typeface.label(28)).foregroundStyle(Theme.Palette.textPrimary)
+                            Text(app.displayName(channel)).font(Theme.Typeface.label(28)).foregroundStyle(Theme.Palette.textPrimary)
                             Text(channel.hasAnnouncedArchive ? "Replay annoncé sur \(channel.archive?.days ?? 0) jours" : "Pas de replay annoncé")
                                 .font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.textSecondary)
                         }

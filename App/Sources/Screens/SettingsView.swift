@@ -133,6 +133,8 @@ private struct CategorySettings: View {
                                                                        set: { app.setHideAdult($0) }))
             Toggle("Regrouper les versions d'une chaîne (HD, FHD, 4K)", isOn: Binding(get: { app.preferences.groupVariants },
                                                                                        set: { app.setGroupVariants($0) }))
+            Toggle("Noms de chaînes simplifiés (sans « FR: » ni « FHD »)", isOn: Binding(get: { app.settings.cleanChannelNames },
+                                                                                          set: { v in app.updateSettings { $0.cleanChannelNames = v } }))
             Section("Appui long sur une catégorie pour la déplacer") {
                 ForEach(categories) { category in
                     let hidden = app.preferences.hiddenCategories.contains(category.id)
@@ -156,6 +158,7 @@ private struct CategorySettings: View {
 
 private struct GuideSettings: View {
     @Environment(AppModel.self) private var app
+    @State private var customURL = ""
 
     var body: some View {
         List {
@@ -164,6 +167,21 @@ private struct GuideSettings: View {
             Picker("Jours à venir", selection: Binding(get: { app.settings.epgDaysAhead },
                                                          set: { v in app.updateSettings { $0.epgDaysAhead = v } })) {
                 ForEach([1, 2, 3, 5, 7], id: \.self) { Text("\($0) j").tag($0) }
+            }
+            Toggle("Aperçu vidéo dans le guide", isOn: Binding(get: { app.settings.guidePreview },
+                                                                set: { v in app.updateSettings { $0.guidePreview = v } }))
+            Section("Guide XMLTV supplémentaire (complète les chaînes sans programme)") {
+                TextField("Adresse http(s) d'un guide XMLTV (.xml ou .xml.gz)", text: $customURL)
+                    .keyboardType(.URL)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .onSubmit { app.updateSettings { $0.customXMLTVURL = customURL } }
+                if !app.settings.customXMLTVURL.isEmpty {
+                    Button("Retirer ce guide") {
+                        customURL = ""
+                        app.updateSettings { $0.customXMLTVURL = "" }
+                    }
+                }
             }
             LabeledContent("Programmes en mémoire", value: "\(app.epg.index.programmeCount) sur \(app.epg.index.channelCount) chaînes")
             if let date = app.epg.lastFullRefresh {
@@ -178,6 +196,7 @@ private struct GuideSettings: View {
             .disabled(app.epg.isImportingXMLTV)
         }
         .navigationTitle("Guide TV")
+        .onAppear { customURL = app.settings.customXMLTVURL }
     }
 }
 

@@ -207,7 +207,7 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
                                                                        for: indexPath) as! ChannelHeaderView
             if channels.indices.contains(indexPath.section) {
                 let channel = channels[indexPath.section]
-                view.configure(channel: channel, isFavorite: app.isFavorite(channel.id))
+                view.configure(channel: channel, name: app.displayName(channel), isFavorite: app.isFavorite(channel.id))
             }
             return view
         case GuideLayout.timeHeaderKind:
@@ -342,6 +342,14 @@ struct GuideScreen: View {
         }
         .padding(.top, 10)
         .onExitCommand { backToTopBar() }
+        // Aperçu : démarre quand le focus reste une seconde sur une chaîne du guide.
+        .task(id: focus?.channel.id) {
+            guard app.settings.guidePreview, let id = focus?.channel.id else { return }
+            try? await Task.sleep(nanoseconds: 1_100_000_000)
+            guard !Task.isCancelled, !router.isPlayerPresented else { return }
+            app.playback.startPreview(id)
+        }
+        .onDisappear { app.playback.stopPreview() }
         .sheet(isPresented: $showDetail, onDismiss: {
             // Le lecteur ne s'ouvre qu'une fois la fiche refermée (voir ProgrammeDetailView).
             guard let choice = pendingChoice, let selected else { return }
@@ -376,7 +384,13 @@ private struct GuideFocusHeader: View {
     var body: some View {
         HStack(alignment: .top, spacing: 30) {
             if let channel {
-                ChannelLogoView(channel: channel, size: CGSize(width: 220, height: 124))
+                if app.settings.guidePreview {
+                    // Aperçu muet de la chaîne (même lecteur que l'écran Direct : un clic sur le
+                    // programme en cours passe en plein écran sans recharger).
+                    PreviewBox(channel: channel, programme: programme, size: CGSize(width: 302, height: 170), showsHint: false)
+                } else {
+                    ChannelLogoView(channel: channel, size: CGSize(width: 220, height: 124))
+                }
                 VStack(alignment: .leading, spacing: 8) {
                     if let programme {
                         let now = Date()
@@ -389,13 +403,13 @@ private struct GuideFocusHeader: View {
                                                                              settings: app.settings.catchup)
                                 if availability.window != nil { StatusBadge(kind: .replay) }
                             }
-                            Text("\(channel.name) · \(DayLabel.label(for: programme.start, relativeTo: now, timeZone: .current)) · \(programme.start.clockText) – \(programme.end.clockText)")
+                            Text("\(app.displayName(channel)) · \(DayLabel.label(for: programme.start, relativeTo: now, timeZone: .current)) · \(programme.start.clockText) – \(programme.end.clockText)")
                                 .font(Theme.Typeface.time(22)).foregroundStyle(Theme.Palette.textSecondary)
                         }
                         Text(programme.title).font(Theme.Typeface.programme(42)).foregroundStyle(Theme.Palette.textPrimary).lineLimit(1)
                         Text(programme.summary ?? " ").font(Theme.Typeface.body(22)).foregroundStyle(Theme.Palette.textSecondary).lineLimit(2)
                     } else {
-                        Text(channel.name).font(Theme.Typeface.label(30)).foregroundStyle(Theme.Palette.textPrimary)
+                        Text(app.displayName(channel)).font(Theme.Typeface.label(30)).foregroundStyle(Theme.Palette.textPrimary)
                         Text("Programme non communiqué").font(Theme.Typeface.programme(36)).foregroundStyle(Theme.Palette.textTertiary)
                     }
                 }
@@ -407,7 +421,7 @@ private struct GuideFocusHeader: View {
             }
             legend
         }
-        .frame(height: 150, alignment: .top)
+        .frame(height: 170, alignment: .top)
         .animation(Theme.Motion.standard, value: programme?.id)
     }
 
