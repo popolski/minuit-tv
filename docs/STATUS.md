@@ -36,14 +36,14 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Lecteur : barre position / direct après une pause | ✅ | ✅ | — | ⏳ |
 | Guide : fiche du programme focalisé en tête | ✅ | ✅ | — | ⏳ |
 | Configuration par téléphone (QR code, serveur local, code à 6 chiffres) | ✅ | ✅ | ✅ (code, requêtes) | ⏳ |
-| Lien M3U converti en compte Xtream (connexion, page du téléphone) | ✅ | ⏳ | ✅ (écrit) | ⏳ |
-| Reconnexion d'AetherEngine respectée (délai de grâce, message « Reconnexion au fournisseur ») | ✅ | ⏳ | ✅ (écrit) | ⏳ |
-| Qualité automatique : descend après arrêts répétés, remonte après 15 min stables | ✅ | ⏳ | ✅ (politique, écrit) | ⏳ |
-| Accueil « À l'antenne » en rangées : vos chaînes, thèmes, marques | ✅ | ⏳ | ✅ (marques, écrit) | ⏳ |
+| Lien M3U converti en compte Xtream (connexion, page du téléphone) | ✅ | ✅ | ✅ | ⏳ |
+| Reconnexion d'AetherEngine respectée (délai de grâce, message « Reconnexion au fournisseur ») | ✅ | ✅ | ✅ | ⏳ |
+| Qualité automatique : descend après arrêts répétés, remonte après 15 min stables | ✅ | ✅ | ✅ (politique) | ⏳ |
+| Accueil « À l'antenne » en rangées : vos chaînes, thèmes, marques | ✅ | ✅ | ✅ (marques) | ⏳ |
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
 État au 2 novembre 2026 :
-- **95 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
+- **99 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
 - **Application tvOS compilée** par la CI (image `xcode-27`, Xcode 27.1), sans avertissement
   dans le code de Minuit ; IPA vérifiée (arm64, tvOS, frameworks FFmpeg) — Release `build-3`.
 - **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur
