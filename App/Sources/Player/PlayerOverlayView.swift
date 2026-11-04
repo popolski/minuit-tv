@@ -147,7 +147,7 @@ private struct LiveChrome: View {
                 VStack(spacing: 0) {
                     top(channel: channel, current: current, now: context.date, delay: delay)
                     Spacer()
-                    bottom(current: current, next: next, now: watched)
+                    bottom(current: current, next: next, now: watched, live: context.date)
                 }
                 .onAppear { app.epg.ensureFresh([channel.id]) }
             }
@@ -215,13 +215,13 @@ private struct LiveChrome: View {
         return parts.joined(separator: " • ")
     }
 
-    private func bottom(current: Programme?, next: Programme?, now: Date) -> some View {
+    private func bottom(current: Programme?, next: Programme?, now: Date, live: Date) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             if let current {
                 Text(current.title).font(Theme.Typeface.programme(44)).foregroundStyle(Theme.Palette.textPrimary).lineLimit(1)
-                HStack(spacing: 18) {
+                HStack(alignment: .top, spacing: 18) {
                     Text(current.start.clockText).font(Theme.Typeface.time(22))
-                    ProgressLine(progress: current.progress(at: now), tint: Theme.Palette.ember, height: 5)
+                    LiveProgressBar(programme: current, watched: now, live: live)
                     Text(current.end.clockText).font(Theme.Typeface.time(22))
                 }
                 .foregroundStyle(Theme.Palette.textSecondary)
@@ -243,6 +243,51 @@ private struct LiveChrome: View {
         .padding(.bottom, Theme.Metrics.safeVertical)
         .padding(.top, 120)
         .background(Theme.Palette.scrimBottom)
+    }
+}
+
+/// Progression du programme : partie regardée, partie en mémoire jusqu'au direct (après
+/// une pause), repère du direct ; heures « vous » et « direct » sous la barre quand elles diffèrent.
+private struct LiveProgressBar: View {
+    let programme: Programme
+    let watched: Date
+    let live: Date
+
+    var body: some View {
+        let position = programme.progress(at: watched)
+        let edge = programme.progress(at: live)
+        let delayed = live.timeIntervalSince(watched) >= 1
+        VStack(spacing: 10) {
+            GeometryReader { proxy in
+                let width = proxy.size.width
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.Palette.textPrimary.opacity(0.2))
+                    if delayed {
+                        Capsule().fill(Theme.Palette.ember.opacity(0.35)).frame(width: width * edge)
+                    }
+                    Capsule().fill(Theme.Palette.ember).frame(width: width * position)
+                    if delayed {
+                        Capsule().fill(Theme.Palette.ember).frame(width: 4, height: 18).offset(x: width * edge - 2)
+                        Circle().fill(Theme.Palette.textPrimary).frame(width: 18, height: 18).offset(x: width * position - 9)
+                    }
+                }
+                .frame(height: 6)
+                .frame(maxHeight: .infinity)
+            }
+            .frame(height: 18)
+            if delayed {
+                GeometryReader { proxy in
+                    let width = proxy.size.width
+                    ZStack(alignment: .leading) {
+                        Text("\(watched.clockText) vous").font(Theme.Typeface.time(19)).foregroundStyle(Theme.Palette.textPrimary)
+                            .fixedSize().offset(x: max(0, width * position - 50))
+                        Text("\(live.clockText) direct").font(Theme.Typeface.time(19)).foregroundStyle(Theme.Palette.ember)
+                            .fixedSize().offset(x: min(width - 110, max(width * position + 90, width * edge - 20)))
+                    }
+                }
+                .frame(height: 24)
+            }
+        }
     }
 }
 
@@ -321,6 +366,9 @@ private struct MoreMenu: View {
             row("Recharger la chaîne", "arrow.clockwise") { controller.reloadCurrent() }
                 .focused($first)
             row("Chaîne précédente", "arrow.uturn.backward") { controller.recallPreviousChannel() }
+            ForEach(controller.otherVariants) { variant in
+                row("Version \(PlaybackController.qualityLabel(variant))", "rectangle.stack") { controller.switchVariant(to: variant.id) }
+            }
             row("Fermer le menu", "xmark") {}
         }
         .padding(12)
@@ -638,6 +686,16 @@ private struct ConnectionSection: View {
             }
             .buttonStyle(GlassRowButtonStyle(horizontalPadding: 22, verticalPadding: 12))
             .disabled(running)
+            if let variant = controller.otherVariants.first {
+                Button {
+                    controller.panel = .none
+                    controller.switchVariant(to: variant.id)
+                } label: {
+                    Label("Essayer la version \(PlaybackController.qualityLabel(variant))", systemImage: "rectangle.stack")
+                        .font(Theme.Typeface.label(22)).primaryText()
+                }
+                .buttonStyle(GlassRowButtonStyle(horizontalPadding: 22, verticalPadding: 12))
+            }
         }
         .task { await run() }
     }
@@ -657,8 +715,18 @@ private struct ConnectionSection: View {
             Text(title).font(Theme.Typeface.label(22)).foregroundStyle(Theme.Palette.textPrimary)
             Spacer()
             Text(detail).font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary).lineLimit(1)
+            // Un mot en plus de la couleur : l'état se lit sans distinguer les teintes.
+            Text(word(status)).font(Theme.Typeface.section(18)).foregroundStyle(color(status))
         }
         .padding(.horizontal, 22)
+    }
+
+    private func word(_ status: ConnectionReport.Status) -> String {
+        switch status {
+        case .ok: return "OK"
+        case .slow: return "LENT"
+        case .failed: return "ÉCHEC"
+        }
     }
 
     private func color(_ status: ConnectionReport.Status) -> Color {

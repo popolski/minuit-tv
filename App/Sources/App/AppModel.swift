@@ -26,6 +26,8 @@ final class AppModel {
 
     let epg = EPGService()
     let playback = PlaybackController()
+    /// Serveur local de l'écran de connexion (configuration depuis le téléphone).
+    let phoneSetup = PhoneSetupServer()
     @ObservationIgnored let archive = ArchiveService()
     @ObservationIgnored private(set) var client: XtreamClient?
 
@@ -49,6 +51,12 @@ final class AppModel {
         preferences = preferencesStore.load() ?? LibraryPreferences()
         settings = settingsStore.load() ?? AppSettings()
         playback.app = self
+        phoneSetup.onCredentials = { [weak self] server, username, password in
+            guard let self else { return "L’Apple TV n’est pas prête." }
+            await self.signIn(server: server, username: username, password: password)
+            if case .signedOut(let message) = self.phase { return message ?? "Connexion refusée." }
+            return nil
+        }
         archive.onStyleConfirmed = { [weak self] style in
             self?.updateSettings { $0.catchup.confirmedStyle = style }
         }
@@ -106,6 +114,7 @@ final class AppModel {
             phase = .loading("Chargement des chaînes…")
             try await loadCatalog()
             phase = .ready
+            phoneSetup.stop()
         } catch let error as XtreamError {
             client = nil
             credentials = nil
@@ -281,6 +290,12 @@ final class AppModel {
     func setHideAdult(_ hide: Bool) {
         var prefs = preferences
         prefs.hideAdultContent = hide
+        savePreferences(prefs)
+    }
+
+    func setGroupVariants(_ group: Bool) {
+        var prefs = preferences
+        prefs.groupVariants = group
         savePreferences(prefs)
     }
 

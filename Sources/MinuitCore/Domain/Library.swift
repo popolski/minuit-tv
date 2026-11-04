@@ -33,6 +33,34 @@ public enum SearchNormalizer {
     }
 }
 
+/// Versions d'une même chaîne (« TF1 HD », « TF1 FHD », « TF1 4K ») : même nom une fois la
+/// qualité retirée. Les listes n'en montrent qu'une ; les autres restent proposées dans
+/// le lecteur et servent de repli quand une version ne fonctionne pas.
+public enum ChannelVariants {
+    static let qualityTokens: Set<String> = [
+        "4k", "uhd", "fhd", "hd", "sd", "hq", "lq", "2160p", "2160", "1080p", "1080i", "1080", "720p", "720",
+        "576p", "480p", "hevc", "h265", "h264", "x265", "50fps", "60fps", "25fps", "raw", "backup"
+    ]
+
+    /// Clé de regroupement ; nil quand le nom ne contient que des mentions de qualité.
+    public static func key(for name: String) -> String? {
+        let words = SearchNormalizer.normalize(QualityBadge.expandingSuperscripts(name))
+            .split(separator: " ").filter { !qualityTokens.contains(String($0)) }
+        return words.isEmpty ? nil : words.joined(separator: " ")
+    }
+
+    /// Version proposée par défaut : FHD, puis HD, sans mention, 4K (débit, compatibilité), SD.
+    public static func rank(_ channel: Channel) -> Int {
+        switch QualityBadge.parse(channel.name) {
+        case .fhd: return 0
+        case .hd: return 1
+        case nil: return 2
+        case .uhd: return 3
+        case .sd: return 4
+        }
+    }
+}
+
 /// Préférences utilisateur relatives au catalogue. Volontairement compactes :
 /// sur tvOS, le stockage persistant local est limité (voir `PreferencesStore`).
 public struct LibraryPreferences: Sendable, Codable, Equatable {
@@ -44,13 +72,15 @@ public struct LibraryPreferences: Sendable, Codable, Equatable {
     public var lastChannel: ChannelID?
     public var lastCategory: CategoryID?
     public var hideAdultContent: Bool = true
+    /// Une seule ligne par chaîne quand le fournisseur en propose plusieurs versions.
+    public var groupVariants: Bool = true
 
     public static let maxRecents = 20
 
     public init() {}
 
     enum CodingKeys: String, CodingKey {
-        case favorites, hiddenCategories, categoryOrder, recents, lastChannel, lastCategory, hideAdultContent
+        case favorites, hiddenCategories, categoryOrder, recents, lastChannel, lastCategory, hideAdultContent, groupVariants
     }
 
     /// Décodage tolérant : un champ ajouté par une version ultérieure, ou illisible, ne doit
@@ -64,6 +94,7 @@ public struct LibraryPreferences: Sendable, Codable, Equatable {
         lastChannel = c.tolerant(.lastChannel)
         lastCategory = c.tolerant(.lastCategory)
         hideAdultContent = c.tolerant(.hideAdultContent) ?? true
+        groupVariants = c.tolerant(.groupVariants) ?? true
     }
 
     public func isFavorite(_ id: ChannelID) -> Bool { favorites.contains(id) }
@@ -130,6 +161,9 @@ public struct ChannelLibrary: Sendable {
     private let byID: [ChannelID: Channel]
     private let byCategory: [CategoryID: [ChannelID]]
     private let searchKeys: [ChannelID: String]
+    private let variantKeys: [ChannelID: String]
+    /// Versions par clé, dans l'ordre de préférence (`ChannelVariants.rank`).
+    private let byVariant: [String: [ChannelID]]
 
     public init(categories: [ChannelCategory], channels: [Channel]) {
         self.categories = categories.sorted { $0.serverOrder < $1.serverOrder }
@@ -137,14 +171,51 @@ public struct ChannelLibrary: Sendable {
         var byID: [ChannelID: Channel] = [:]
         var byCategory: [CategoryID: [ChannelID]] = [:]
         var keys: [ChannelID: String] = [:]
+        var variantKeys: [ChannelID: String] = [:]
+        var byVariant: [String: [Channel]] = [:]
         for channel in channels {
             byID[channel.id] = channel
             for category in channel.categoryIDs { byCategory[category, default: []].append(channel.id) }
             keys[channel.id] = SearchNormalizer.normalize(channel.name)
+            if let key = ChannelVariants.key(for: channel.name) {
+                variantKeys[channel.id] = key
+                byVariant[key, default: []].append(channel)
+            }
         }
         self.byID = byID
         self.byCategory = byCategory
         self.searchKeys = keys
+        self.variantKeys = variantKeys
+        // Tri stable : à rang égal, l'ordre du serveur est conservé.
+        self.byVariant = byVariant.mapValues { list in
+            list.enumerated()
+                .sorted { (ChannelVariants.rank($0.element), $0.offset) < (ChannelVariants.rank($1.element), $1.offset) }
+                .map(\.element.id)
+        }
+    }
+
+    /// Toutes les versions d'une chaîne (elle comprise), dans l'ordre de préférence ;
+    /// vide quand elle n'en a qu'une.
+    public func variants(of id: ChannelID) -> [Channel] {
+        guard let key = variantKeys[id], let ids = byVariant[key], ids.count > 1 else { return [] }
+        return ids.compactMap { byID[$0] }
+    }
+
+    /// Une ligne par chaîne : à la place de la première version rencontrée, la mieux classée
+    /// de celles présentes dans la liste.
+    func collapsingVariants(_ list: [Channel]) -> [Channel] {
+        var slot: [String: Int] = [:]
+        var result: [Channel] = []
+        for channel in list {
+            guard let key = variantKeys[channel.id] else { result.append(channel); continue }
+            if let index = slot[key] {
+                if ChannelVariants.rank(channel) < ChannelVariants.rank(result[index]) { result[index] = channel }
+            } else {
+                slot[key] = result.count
+                result.append(channel)
+            }
+        }
+        return result
     }
 
     public static let empty = ChannelLibrary(categories: [], channels: [])
@@ -189,9 +260,10 @@ public struct ChannelLibrary: Sendable {
             for channel in channels where channel.categoryIDs.isEmpty && seen.insert(channel.id).inserted && visible(channel) {
                 result.append(channel)
             }
-            return result
+            return preferences.groupVariants ? collapsingVariants(result) : result
         case .category(let id):
-            return (byCategory[id] ?? []).compactMap { byID[$0] }.filter { !preferences.hideAdultContent || !$0.isAdult }
+            let list = (byCategory[id] ?? []).compactMap { byID[$0] }.filter { !preferences.hideAdultContent || !$0.isAdult }
+            return preferences.groupVariants ? collapsingVariants(list) : list
         case .favorites:
             return preferences.favorites.compactMap { byID[$0] }
         case .recents:

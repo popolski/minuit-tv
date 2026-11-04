@@ -22,12 +22,17 @@ public enum QualityBadge: String, Sendable, Hashable, CaseIterable {
     case hd = "HD"
     case sd = "SD"
 
+    /// Exposants Unicode utilisés par certains fournisseurs (ᴴᴰ, ᵁᴴᴰ, ᶠᴴᴰ), en lettres.
+    static func expandingSuperscripts(_ name: String) -> String {
+        var text = name
+        for (from, to) in [("ᵁᴴᴰ", " UHD"), ("ᶠᴴᴰ", " FHD"), ("ᴴᴰ", " HD"), ("ˢᴰ", " SD")] {
+            text = text.replacingOccurrences(of: from, with: to)
+        }
+        return text
+    }
+
     public static func parse(_ channelName: String) -> QualityBadge? {
-        // Exposants Unicode utilisés par certains fournisseurs (ᴴᴰ, ᵁᴴᴰ, ᶠᴴᴰ).
-        let superscripts: [(String, String)] = [("ᵁᴴᴰ", " UHD"), ("ᶠᴴᴰ", " FHD"), ("ᴴᴰ", " HD"), ("ˢᴰ", " SD")]
-        var text = channelName
-        for (from, to) in superscripts { text = text.replacingOccurrences(of: from, with: to) }
-        let tokens = text.uppercased()
+        let tokens = expandingSuperscripts(channelName).uppercased()
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "+" })
             .map(String.init)
         let set = Set(tokens)

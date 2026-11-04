@@ -119,7 +119,7 @@ final class PlaybackController {
     func playLive(_ channel: ChannelID) {
         zapTask?.cancel()
         zap.cancel()
-        navigator.tune(channel)
+        navigator.tune(zapAnchor(for: channel))
         displayedChannel = channel
         showBanner()
         // Aperçu déjà en cours sur cette chaîne : passage en plein écran sans recharger.
@@ -132,6 +132,54 @@ final class PlaybackController {
         }
         isPreview = false
         tune(.live(channel))
+    }
+
+    // MARK: Versions d'une chaîne (HD, FHD, 4K…)
+
+    /// Versions déjà essayées pour la chaîne en cours : le repli ne tourne pas en rond.
+    @ObservationIgnored private var triedVariants: Set<ChannelID> = []
+
+    /// Une version hors de la liste de zapping (les listes n'en gardent qu'une) zappe
+    /// depuis celle de la liste.
+    private func zapAnchor(for channel: ChannelID) -> ChannelID {
+        guard !navigator.list.contains(channel), let app else { return channel }
+        return app.library.variants(of: channel).first { navigator.list.contains($0.id) }?.id ?? channel
+    }
+
+    /// Autres versions de la chaîne affichée.
+    var otherVariants: [Channel] {
+        guard let id = displayedChannel, let app else { return [] }
+        return app.library.variants(of: id).filter { $0.id != id }
+    }
+
+    /// Passe à une autre version de la même chaîne, sans toucher au zapping.
+    func switchVariant(to channel: ChannelID) {
+        guard isLive else { return }
+        triedVariants.insert(channel)
+        displayedChannel = channel
+        showBanner()
+        tune(.live(channel), keepingVariantHistory: true)
+    }
+
+    /// Après abandon : essaie une version pas encore tentée, avec un message qui dit pourquoi.
+    private func fallBackToVariant(after failure: PlaybackFailure) -> Bool {
+        // Pas pendant l'aperçu muet : la fiche affichée ne doit pas changer de chaîne seule.
+        guard case .live(let channel) = target, !isPreview, failure != .connectionLimit, let app else { return false }
+        guard let next = app.library.variants(of: channel).first(where: { !triedVariants.contains($0.id) }) else { return false }
+        let from = Self.qualityLabel(app.library.channel(channel))
+        let reason: String
+        switch failure {
+        case .health(.frozenVideo), .health(.stalled): reason = "l’image saccadait en \(from)"
+        default: reason = "la version \(from) ne répond pas"
+        }
+        log.log(.info, "lecture", "Repli vers une autre version : \(from) → \(Self.qualityLabel(next)) (\(failure))")
+        showToast("Version \(Self.qualityLabel(next)) choisie : \(reason)")
+        switchVariant(to: next.id)
+        return true
+    }
+
+    static func qualityLabel(_ channel: Channel?) -> String {
+        channel.flatMap { QualityBadge.parse($0.name)?.rawValue } ?? "standard"
     }
 
     // MARK: Aperçu (écran Direct)
@@ -187,8 +235,9 @@ final class PlaybackController {
 
     // MARK: Chargement
 
-    private func tune(_ newTarget: PlaybackTarget) {
+    private func tune(_ newTarget: PlaybackTarget, keepingVariantHistory: Bool = false) {
         guard let app, let session = app.session else { return }
+        if !keepingVariantHistory { triedVariants = [newTarget.channel] }
         target = newTarget
         displayedChannel = newTarget.channel
         lastFailure = nil
@@ -377,7 +426,7 @@ final class PlaybackController {
             phase = .recovering("Changement de moteur…")
             restartForRecovery(attempt)
         case .giveUp(let failure):
-            fail(failure)
+            if !fallBackToVariant(after: failure) { fail(failure) }
         }
     }
 

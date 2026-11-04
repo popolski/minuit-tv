@@ -1,8 +1,9 @@
 import SwiftUI
 import MinuitCore
 
-/// Connexion Xtream : trois champs, validation explicite, aucun secret affiché en clair
-/// hors du champ mot de passe sécurisé.
+/// Connexion Xtream : à gauche la saisie à la télécommande, à droite la configuration
+/// depuis le téléphone (QR code, code à 6 chiffres). Aucun secret affiché en clair hors
+/// du champ mot de passe sécurisé.
 struct LoginView: View {
     @Environment(AppModel.self) private var app
     let message: String?
@@ -16,22 +17,16 @@ struct LoginView: View {
     enum Field { case server, username, password, submit }
 
     var body: some View {
-        HStack(spacing: 120) {
-            VStack(spacing: 22) {
-                MinuitMark(size: 130)
-                Text("Minuit").font(Theme.Typeface.display(110)).foregroundStyle(Theme.Palette.textPrimary)
-                Text("La télévision en direct, sans détour.")
-                    .font(Theme.Typeface.title(32))
-                    .foregroundStyle(Theme.Palette.textSecondary)
+        HStack(alignment: .center, spacing: 110) {
+            VStack(alignment: .leading, spacing: 22) {
+                HStack(spacing: 18) {
+                    MinuitMark(size: 72)
+                    Text("Minuit").font(Theme.Typeface.display(64)).foregroundStyle(Theme.Palette.textPrimary)
+                }
                 Text("Saisissez les informations Xtream Codes fournies par votre fournisseur. Les identifiants sont conservés dans le trousseau sécurisé de l'Apple TV.")
                     .font(Theme.Typeface.body(23))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Theme.Palette.textTertiary)
-                    .frame(maxWidth: 620)
-            }
-            .frame(width: 700)
-            VStack(alignment: .leading, spacing: 22) {
-                Text("Compte Xtream Codes").sectionHeader()
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .padding(.bottom, 8)
                 TextField("Adresse du serveur (ex. exemple.tv:8080)", text: $server)
                     .textContentType(.URL)
                     .keyboardType(.URL)
@@ -74,9 +69,70 @@ struct LoginView: View {
                 .disabled(isWorking || server.isEmpty || username.isEmpty || password.isEmpty)
                 .focused($field, equals: .submit)
             }
-            .frame(width: 760)
+            .frame(width: 780)
+
+            PhoneSetupPanel(setup: app.phoneSetup)
+                .frame(width: 600)
         }
-        .padding(.horizontal, Theme.Metrics.safeHorizontal * 2)
-        .onAppear { field = .server }
+        .padding(.horizontal, Theme.Metrics.safeHorizontal)
+        .onAppear {
+            field = .server
+            if !DemoMode.isEnabled { app.phoneSetup.start() }
+        }
+    }
+}
+
+/// QR code + code à 6 chiffres + adresse de secours, et l'état de la liaison avec le téléphone.
+private struct PhoneSetupPanel: View {
+    let setup: PhoneSetupServer
+
+    var body: some View {
+        VStack(spacing: 26) {
+            Text("Ou avec votre téléphone").font(Theme.Typeface.title(34)).foregroundStyle(Theme.Palette.textPrimary)
+            switch setup.status {
+            case .unavailable(let reason):
+                Label(reason, systemImage: "wifi.exclamationmark")
+                    .font(Theme.Typeface.body(23)).foregroundStyle(Theme.Palette.textSecondary)
+                    .multilineTextAlignment(.center)
+            default:
+                if let image = setup.qrImage {
+                    Image(uiImage: image)
+                        .interpolation(.none)
+                        .resizable()
+                        .frame(width: 300, height: 300)
+                        .padding(28)
+                        .background(RoundedRectangle(cornerRadius: 30, style: .continuous).fill(Color.white))
+                        .accessibilityLabel("QR code de configuration")
+                }
+                VStack(spacing: 8) {
+                    Text("Scannez avec l’appareil photo du téléphone, puis saisissez vos identifiants sur la page qui s’ouvre.")
+                        .font(Theme.Typeface.body(22)).foregroundStyle(Theme.Palette.textSecondary)
+                        .multilineTextAlignment(.center)
+                    if let address = setup.address {
+                        Text("Sans QR code : ouvrez \(address) et tapez \(setup.session.displayCode)")
+                            .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textTertiary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                statusLine
+            }
+            Text("Le téléphone doit être sur le même réseau que l’Apple TV.")
+                .font(Theme.Typeface.caption(19)).foregroundStyle(Theme.Palette.textTertiary)
+        }
+    }
+
+    @ViewBuilder private var statusLine: some View {
+        switch setup.status {
+        case .phoneConnected:
+            Label("Téléphone connecté : remplissez la page, puis « Envoyer ».", systemImage: "iphone")
+                .font(Theme.Typeface.label(22)).foregroundStyle(Theme.Palette.textPrimary)
+        case .signingIn:
+            HStack(spacing: 12) {
+                ProgressView()
+                Text("Vérification du compte…").font(Theme.Typeface.label(22)).foregroundStyle(Theme.Palette.textPrimary)
+            }
+        default:
+            Text("Code \(setup.session.displayCode)").font(Theme.Typeface.time(30)).foregroundStyle(Theme.Palette.textPrimary)
+        }
     }
 }

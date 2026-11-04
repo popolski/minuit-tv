@@ -34,8 +34,9 @@ struct LiveScreen: View {
                 ChannelListColumn(context: context, sidebarFocus: $sidebarFocus, focusedChannel: $focusedChannel)
                     .focusSection()
                 if let id = focusedChannel ?? app.preferences.lastChannel, let channel = app.library.channel(id) {
-                    ChannelDetailPanel(channel: channel)
+                    ChannelDetailPanel(channel: channel, context: context)
                         .frame(width: 600)
+                        .focusSection()
                 } else {
                     Spacer().frame(width: 600)
                 }
@@ -223,9 +224,12 @@ private struct ChannelListColumn: View {
 
 private struct ChannelDetailPanel: View {
     @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router
     let channel: Channel
+    let context: ChannelListContext
 
     var body: some View {
+        let variants = app.library.variants(of: channel.id)
         TimelineView(.periodic(from: .now, by: 30)) { context in
             let now = context.date
             let upcoming = app.epg.programmes(channel.id, in: DateInterval(start: now, end: now.addingTimeInterval(8 * 3600)))
@@ -240,6 +244,20 @@ private struct ChannelDetailPanel: View {
                     Text(channel.name).font(Theme.Typeface.label(28)).foregroundStyle(Theme.Palette.textPrimary).lineLimit(1)
                     if let quality = QualityBadge.parse(channel.name) { MetaTag(text: quality.rawValue) }
                     if channel.hasAnnouncedArchive { MetaTag(text: "Replay", systemImage: "clock.arrow.circlepath") }
+                }
+                if !variants.isEmpty {
+                    // Une seule ligne par chaîne dans la liste : les autres versions se choisissent ici.
+                    HStack(spacing: 10) {
+                        Text("Versions").font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
+                        ForEach(variants) { variant in
+                            Button { router.watch(variant.id, context: context, app: app) } label: {
+                                Text(PlaybackController.qualityLabel(variant) + (variant.id == channel.id ? " · par défaut" : ""))
+                                    .font(Theme.Typeface.label(20)).primaryText()
+                            }
+                            .buttonStyle(GlassRowButtonStyle(cornerRadius: 22, horizontalPadding: 18, verticalPadding: 8))
+                            .fixedSize()
+                        }
+                    }
                 }
                 if let current {
                     Text(current.title).font(Theme.Typeface.programme(36)).foregroundStyle(Theme.Palette.textPrimary).lineLimit(2)
@@ -268,7 +286,8 @@ private struct ChannelDetailPanel: View {
                     .padding(.top, 4)
                 }
                 Spacer(minLength: 0)
-                Text("OK : plein écran · Maintenir OK : favoris")
+                Text(variants.isEmpty ? "OK : plein écran · Maintenir OK : favoris"
+                                      : "OK : plein écran · Maintenir OK : favoris · ▶ : autres versions")
                     .font(Theme.Typeface.caption(19)).foregroundStyle(Theme.Palette.textTertiary)
                     .padding(.bottom, 24)
             }

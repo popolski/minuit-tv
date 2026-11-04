@@ -50,6 +50,7 @@ targets:
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         ITSAppUsesNonExemptEncryption: false
+        NSLocalNetworkUsageDescription: "Minuit ouvre une page sur votre réseau local pour configurer l’Apple TV depuis votre téléphone."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.minuit.tv

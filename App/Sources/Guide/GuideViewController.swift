@@ -9,6 +9,8 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
     private let onSelect: (Programme?, Channel) -> Void
     /// Retour : remonte vers la barre du haut au lieu de quitter l'application.
     var onBack: (() -> Void)?
+    /// Case focalisée (programme, ou trou du guide), pour la fiche en tête d'écran.
+    var onFocus: ((Programme?, Channel) -> Void)?
     private let layout = GuideLayout()
     private var collectionView: UICollectionView!
 
@@ -226,6 +228,13 @@ final class GuideViewController: UIViewController, UICollectionViewDataSource, U
         let rowSlots = slots(indexPath.section)
         guard rowSlots.indices.contains(indexPath.item) else { return }
         let interval = rowSlots[indexPath.item].interval
+        if channels.indices.contains(indexPath.section) {
+            if case .programme(let programme) = rowSlots[indexPath.item] {
+                onFocus?(programme, channels[indexPath.section])
+            } else {
+                onFocus?(nil, channels[indexPath.section])
+            }
+        }
         // Bord de fenêtre atteint : on fait glisser la fenêtre en gardant le programme focalisé à l'écran.
         if indexPath.item == rowSlots.count - 1, interval.end >= timeline.end.addingTimeInterval(-60) {
             DispatchQueue.main.async { self.shiftWindow(byHours: 6, anchor: interval.start) }
@@ -276,6 +285,7 @@ struct GuideScreen: View {
     @State private var selected: (programme: Programme, channel: Channel)?
     @State private var showDetail = false
     @State private var proxy = GuideProxy()
+    @State private var focus: (programme: Programme?, channel: Channel)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -294,7 +304,10 @@ struct GuideScreen: View {
             .padding(.horizontal, Theme.Metrics.safeHorizontal)
             .focusSection()
 
-            GuideGrid(app: app, proxy: proxy, onBack: backToTopBar) { programme, channel in
+            GuideFocusHeader(app: app, programme: focus?.programme, channel: focus?.channel)
+                .padding(.horizontal, Theme.Metrics.safeHorizontal)
+
+            GuideGrid(app: app, proxy: proxy, onBack: backToTopBar, onFocus: { focus = ($0, $1) }) { programme, channel in
                 guard let programme else {
                     router.watch(channel.id, context: .all, app: app)
                     return
@@ -326,6 +339,51 @@ private func guideButton(_ title: String, _ symbol: String, action: @escaping ()
     .fixedSize()
 }
 
+/// Fiche de la case focalisée, au-dessus de la grille : logo, état, horaires, titre, résumé.
+/// Hauteur fixe : la grille ne saute pas quand le résumé change de longueur.
+private struct GuideFocusHeader: View {
+    let app: AppModel
+    let programme: Programme?
+    let channel: Channel?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 30) {
+            if let channel {
+                ChannelLogoView(channel: channel, size: CGSize(width: 220, height: 124))
+                VStack(alignment: .leading, spacing: 8) {
+                    if let programme {
+                        let now = Date()
+                        HStack(spacing: 14) {
+                            if programme.isAiring(at: now) {
+                                StatusBadge(kind: .live)
+                            } else if programme.hasEnded(at: now) {
+                                let availability = CatchupEvaluator.evaluate(programme: programme, channel: channel,
+                                                                             now: now.addingTimeInterval(app.session?.server.clockSkew ?? 0),
+                                                                             settings: app.settings.catchup)
+                                if availability.window != nil { StatusBadge(kind: .replay) }
+                            }
+                            Text("\(channel.name) · \(programme.start.clockText) – \(programme.end.clockText)")
+                                .font(Theme.Typeface.time(22)).foregroundStyle(Theme.Palette.textSecondary)
+                        }
+                        Text(programme.title).font(Theme.Typeface.programme(42)).foregroundStyle(Theme.Palette.textPrimary).lineLimit(1)
+                        Text(programme.summary ?? " ").font(Theme.Typeface.body(22)).foregroundStyle(Theme.Palette.textSecondary).lineLimit(2)
+                    } else {
+                        Text(channel.name).font(Theme.Typeface.label(30)).foregroundStyle(Theme.Palette.textPrimary)
+                        Text("Programme non communiqué").font(Theme.Typeface.programme(36)).foregroundStyle(Theme.Palette.textTertiary)
+                    }
+                }
+                Spacer(minLength: 0)
+            } else {
+                Text("Choisissez un programme pour afficher sa fiche.")
+                    .font(Theme.Typeface.body(24)).foregroundStyle(Theme.Palette.textTertiary)
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(height: 150, alignment: .top)
+        .animation(Theme.Motion.standard, value: programme?.id)
+    }
+}
+
 @MainActor
 final class GuideProxy {
     weak var controller: GuideViewController?
@@ -335,11 +393,13 @@ private struct GuideGrid: UIViewControllerRepresentable {
     let app: AppModel
     let proxy: GuideProxy
     let onBack: () -> Void
+    let onFocus: (Programme?, Channel) -> Void
     let onSelect: (Programme?, Channel) -> Void
 
     func makeUIViewController(context: Context) -> GuideViewController {
         let controller = GuideViewController(app: app, onSelect: onSelect)
         controller.onBack = onBack
+        controller.onFocus = onFocus
         proxy.controller = controller
         return controller
     }

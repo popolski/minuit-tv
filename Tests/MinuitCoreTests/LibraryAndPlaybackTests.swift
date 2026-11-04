@@ -299,3 +299,66 @@ final class LiveDelayAndDiagnosisTests: XCTestCase {
         XCTAssertEqual(ConnectionReport.status(latency: 2.5), .slow)
     }
 }
+
+final class ChannelVariantsTests: XCTestCase {
+    private func channel(_ id: Int, _ name: String, _ category: String = "1") -> Channel {
+        Channel(id: ChannelID(id), name: name, categoryIDs: [CategoryID(category)])
+    }
+
+    func testVersionsShareAKeyWithoutQualityMentions() {
+        XCTAssertEqual(ChannelVariants.key(for: "FR: TF1 FHD"), ChannelVariants.key(for: "FR: TF1 ᴴᴰ"))
+        XCTAssertEqual(ChannelVariants.key(for: "France 2 4K HEVC"), ChannelVariants.key(for: "France 2"))
+        XCTAssertNotEqual(ChannelVariants.key(for: "TF1"), ChannelVariants.key(for: "TF1 Séries Films"))
+        XCTAssertNotEqual(ChannelVariants.key(for: "FR: TF1 HD"), ChannelVariants.key(for: "BE: TF1 HD"))
+        XCTAssertNil(ChannelVariants.key(for: "HD"))
+    }
+
+    func testListsShowOneLinePerChannelPreferringFHD() {
+        let library = ChannelLibrary(categories: [ChannelCategory(id: CategoryID("1"), name: "TNT", serverOrder: 0)],
+                                     channels: [channel(1, "TF1 4K"), channel(2, "TF1 HD"), channel(3, "France 2"),
+                                                channel(4, "TF1 FHD"), channel(5, "France 2 SD")])
+        var prefs = LibraryPreferences()
+        XCTAssertEqual(library.channels(in: .all, preferences: prefs).map(\.id.rawValue), [4, 3],
+                       "une ligne par chaîne, à la place de la première version, la FHD")
+        XCTAssertEqual(library.variants(of: ChannelID(1)).map(\.id.rawValue), [4, 2, 1], "FHD, HD puis 4K")
+        XCTAssertEqual(library.variants(of: ChannelID(3)).map(\.id.rawValue), [3, 5])
+        XCTAssertTrue(ChannelLibrary(categories: [], channels: [channel(9, "Arte")]).variants(of: ChannelID(9)).isEmpty)
+
+        prefs.groupVariants = false
+        XCTAssertEqual(library.channels(in: .category(CategoryID("1")), preferences: prefs).count, 5)
+    }
+}
+
+final class PhoneSetupTests: XCTestCase {
+    func testCodeExpiresAndLocksAfterWrongAttempts() {
+        let now = utc("2026-11-04 20:00")
+        var session = PhoneSetupSession(code: "482913", expiresAt: now.addingTimeInterval(600))
+        XCTAssertEqual(session.displayCode, "482 913")
+        XCTAssertTrue(session.check("482 913", at: now))
+        XCTAssertFalse(session.check("482913", at: now.addingTimeInterval(601)), "expiré")
+        for _ in 0..<PhoneSetupSession.maxFailedAttempts { _ = session.check("000000", at: now) }
+        XCTAssertTrue(session.isLocked)
+        XCTAssertFalse(session.check("482913", at: now), "bloqué même avec le bon code")
+        XCTAssertEqual(PhoneSetupSession.make(now: now).code.count, 6)
+    }
+
+    func testParsesRequestsArrivingInPieces() {
+        let body = "server=http%3A%2F%2Fexemple.tv%3A8080&username=alice&password=a%2Bb+c&code=482913"
+        let raw = "POST /config HTTP/1.1\r\nHost: 192.168.1.42\r\nContent-Length: \(body.utf8.count)\r\n\r\n" + body
+        let data = Data(raw.utf8)
+        XCTAssertEqual(LocalHTTPRequest.parse(data.prefix(30)), .needMoreData)
+        XCTAssertEqual(LocalHTTPRequest.parse(data.dropLast(4)), .needMoreData)
+        guard case .complete(let request) = LocalHTTPRequest.parse(data) else { return XCTFail("requête complète attendue") }
+        XCTAssertEqual(request.method, "POST")
+        XCTAssertEqual(request.path, "/config")
+        let form = FormDecoding.decode(String(decoding: request.body, as: UTF8.self))
+        XCTAssertEqual(form["server"], "http://exemple.tv:8080")
+        XCTAssertEqual(form["password"], "a+b c")
+
+        guard case .complete(let get) = LocalHTTPRequest.parse(Data("GET /?code=482913 HTTP/1.1\r\n\r\n".utf8)) else { return XCTFail() }
+        XCTAssertEqual(get.query["code"], "482913")
+        XCTAssertEqual(LocalHTTPRequest.parse(Data("n'importe quoi\r\n\r\n".utf8)), .invalid)
+        XCTAssertEqual(LocalHTTPRequest.parse(Data(repeating: 65, count: LocalHTTPRequest.maxSize + 1)), .invalid)
+        XCTAssertTrue(PhoneSetupPage.html(code: "482913").contains("value=\"482913\""))
+    }
+}

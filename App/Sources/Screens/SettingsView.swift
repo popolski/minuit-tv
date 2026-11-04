@@ -130,6 +130,8 @@ private struct CategorySettings: View {
         List {
             Toggle("Masquer les contenus pour adultes", isOn: Binding(get: { app.preferences.hideAdultContent },
                                                                        set: { app.setHideAdult($0) }))
+            Toggle("Regrouper les versions d'une chaîne (HD, FHD, 4K)", isOn: Binding(get: { app.preferences.groupVariants },
+                                                                                       set: { app.setGroupVariants($0) }))
             Section("Appui long sur une catégorie pour la déplacer") {
                 ForEach(categories) { category in
                     let hidden = app.preferences.hiddenCategories.contains(category.id)
