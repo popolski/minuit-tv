@@ -49,7 +49,7 @@ struct LoginView: View {
                         .font(Theme.Typeface.label(24))
                         .foregroundStyle(Theme.Palette.danger)
                 }
-                Text("Adresse HTTP ou HTTPS acceptée, port compris (ex. http://exemple.tv:8080).")
+                Text("Adresse HTTP ou HTTPS, port compris (ex. http://exemple.tv:8080), ou lien M3U complet du fournisseur.")
                     .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textTertiary)
                 Button {
                     isWorking = true
@@ -66,10 +66,17 @@ struct LoginView: View {
                     .padding(.vertical, 6)
                 }
                 .buttonStyle(GlassRowButtonStyle(cornerRadius: 40, horizontalPadding: 30, verticalPadding: 14))
-                .disabled(isWorking || server.isEmpty || username.isEmpty || password.isEmpty)
+                .disabled(isWorking || server.isEmpty || (XtreamCredentials.fromM3ULink(server) == nil && (username.isEmpty || password.isEmpty)))
                 .focused($field, equals: .submit)
             }
             .frame(width: 780)
+            .onChange(of: server) { _, value in
+                // Lien M3U collé : on le répartit dans les trois champs (le mot de passe reste masqué).
+                guard let link = XtreamCredentials.fromM3ULink(value) else { return }
+                server = link.server.baseURL.absoluteString
+                username = link.username
+                password = link.password
+            }
 
             PhoneSetupPanel(setup: app.phoneSetup)
                 .frame(width: 600)

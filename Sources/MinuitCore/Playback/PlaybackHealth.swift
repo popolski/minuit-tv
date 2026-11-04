@@ -24,10 +24,13 @@ public struct HealthSample: Sendable, Equatable {
     public var hasVideoTrack: Bool?
     /// Le flux contient une piste audio active (nil : inconnu).
     public var hasAudio: Bool?
+    /// Le moteur se reconnecte lui-même à la source (coupure, 429, 503) : on lui laisse le temps
+    /// au lieu de recharger par-dessus, ce qui annulerait sa reprise en cours.
+    public var sourceReconnecting: Bool
 
     public init(at: TimeInterval, wantsToPlay: Bool = true, clockPosition: Double? = nil, isBuffering: Bool = false,
                 firstFrameShown: Bool = false, videoFrameRate: Double? = nil, lastVideoFrameTime: Double? = nil,
-                hasVideoTrack: Bool? = nil, hasAudio: Bool? = nil) {
+                hasVideoTrack: Bool? = nil, hasAudio: Bool? = nil, sourceReconnecting: Bool = false) {
         self.at = at
         self.wantsToPlay = wantsToPlay
         self.clockPosition = clockPosition
@@ -37,6 +40,7 @@ public struct HealthSample: Sendable, Equatable {
         self.lastVideoFrameTime = lastVideoFrameTime
         self.hasVideoTrack = hasVideoTrack
         self.hasAudio = hasAudio
+        self.sourceReconnecting = sourceReconnecting
     }
 }
 
@@ -69,6 +73,8 @@ public struct HealthThresholds: Sendable, Equatable {
     public var bufferingTimeout: TimeInterval = 15
     public var frozenVideoTimeout: TimeInterval = 4
     public var audioOnlyGrace: TimeInterval = 6
+    /// Délai supplémentaire accordé pendant une reconnexion propre au moteur.
+    public var reconnectGrace: TimeInterval = 25
 
     public init() {}
 }
@@ -153,12 +159,13 @@ public struct PlaybackHealthMonitor: Sendable {
             return .starting
         }
 
+        let grace = sample.sourceReconnecting ? thresholds.reconnectGrace : 0
         if let since = bufferingSince {
-            return now - since >= thresholds.bufferingTimeout ? .stalled : .buffering(since: since)
+            return now - since >= thresholds.bufferingTimeout + grace ? .stalled : .buffering(since: since)
         }
 
         let clockAdvancing = lastClockProgressAt.map { now - $0 < 1.5 } ?? false
-        if !clockAdvancing, let last = lastClockProgressAt ?? Optional(firstFrameAt), now - last >= thresholds.stallTimeout {
+        if !clockAdvancing, let last = lastClockProgressAt ?? Optional(firstFrameAt), now - last >= thresholds.stallTimeout + grace {
             return .stalled
         }
         // Horloge qui avance mais image figée : le cas que l'horloge seule ne détecte pas.

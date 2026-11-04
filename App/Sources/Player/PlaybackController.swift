@@ -47,6 +47,8 @@ final class PlaybackController {
     /// Chaîne affichée dans le bandeau (mise à jour immédiate pendant le zapping).
     private(set) var displayedChannel: ChannelID?
     private(set) var isBuffering = false
+    /// Le moteur relance lui-même la connexion au fournisseur (affiché sous l'indicateur).
+    private(set) var isReconnecting = false
     private(set) var isPaused = false
     private(set) var archive: ArchiveSession?
     private(set) var activeAttempt: PlaybackAttempt?
@@ -138,6 +140,34 @@ final class PlaybackController {
 
     /// Versions déjà essayées pour la chaîne en cours : le repli ne tourne pas en rond.
     @ObservationIgnored private var triedVariants: Set<ChannelID> = []
+    @ObservationIgnored private var adaptive = AdaptiveQuality()
+    /// Version d'où l'on est remonté : on y revient si la version supérieure ne tient pas.
+    @ObservationIgnored private var stepUpOrigin: ChannelID?
+
+    /// Arrêts répétés de l'image : un cran de définition en dessous, la version qui cale écartée.
+    private func adaptiveStepDown() -> Bool {
+        guard let app, app.settings.adaptiveQuality, !isPreview, case .live(let id) = target,
+              let current = app.library.channel(id), adaptive.noteStall(at: now),
+              let lower = adaptive.stepDown(from: current, among: app.library.variants(of: id), at: now) else { return false }
+        adaptive.block(id, at: now)
+        stepUpOrigin = nil
+        log.log(.info, "lecture", "Qualité automatique : \(Self.qualityLabel(current)) → \(Self.qualityLabel(lower)) (arrêts répétés)")
+        showToast("Version \(Self.qualityLabel(lower)) choisie : l’image saccadait en \(Self.qualityLabel(current))")
+        switchVariant(to: lower.id)
+        return true
+    }
+
+    /// Après une longue période stable sur une version de repli : retour à la version par défaut.
+    private func adaptiveStepUpIfDue() {
+        guard let app, app.settings.adaptiveQuality, !isPreview, !isPaused, phase == .playing,
+              case .live(let id) = target, delayClock.delay(at: Date()) < 1,
+              let current = app.library.channel(id),
+              let better = adaptive.stepUp(from: current, among: app.library.variants(of: id), at: now) else { return }
+        stepUpOrigin = id
+        log.log(.info, "lecture", "Qualité automatique : \(Self.qualityLabel(current)) → \(Self.qualityLabel(better)) (flux stable)")
+        showToast("Retour en \(Self.qualityLabel(better)) : le flux tient depuis un moment")
+        switchVariant(to: better.id)
+    }
 
     /// Une version hors de la liste de zapping (les listes n'en gardent qu'une) zappe
     /// depuis celle de la liste.
@@ -165,6 +195,14 @@ final class PlaybackController {
     private func fallBackToVariant(after failure: PlaybackFailure) -> Bool {
         // Pas pendant l'aperçu muet : la fiche affichée ne doit pas changer de chaîne seule.
         guard case .live(let channel) = target, !isPreview, failure != .connectionLimit, let app else { return false }
+        if let origin = stepUpOrigin, origin != channel {
+            // La remontée n'a pas tenu : retour à la version qui fonctionnait, la supérieure écartée.
+            stepUpOrigin = nil
+            adaptive.block(channel, at: now)
+            showToast("Retour en \(Self.qualityLabel(app.library.channel(origin))) : la version \(Self.qualityLabel(app.library.channel(channel))) ne tient pas")
+            switchVariant(to: origin)
+            return true
+        }
         guard let next = app.library.variants(of: channel).first(where: { !triedVariants.contains($0.id) }) else { return false }
         let from = Self.qualityLabel(app.library.channel(channel))
         let reason: String
@@ -237,7 +275,11 @@ final class PlaybackController {
 
     private func tune(_ newTarget: PlaybackTarget, keepingVariantHistory: Bool = false) {
         guard let app, let session = app.session else { return }
-        if !keepingVariantHistory { triedVariants = [newTarget.channel] }
+        if !keepingVariantHistory {
+            triedVariants = [newTarget.channel]
+            adaptive.reset()
+            stepUpOrigin = nil
+        }
         target = newTarget
         displayedChannel = newTarget.channel
         lastFailure = nil
@@ -284,6 +326,7 @@ final class PlaybackController {
         if archive != nil { archive?.format = attempt.format }
         hadFirstFrame = false
         isBuffering = false
+        isReconnecting = false
         delayClock.reset()   // tout chargement repart du point de direct
         phase = .tuning
         monitor.reset(at: now)
@@ -370,6 +413,7 @@ final class PlaybackController {
             phase = .playing
             if let ttff = monitor.timeToFirstFrame { statistics.recordFirstFrame(ttff) }
             if case .live(let channel) = target, let attempt = activeAttempt {
+                adaptive.notePlaying(at: now)
                 memory.remember(attempt, for: channel)
                 // La navigation en aperçu ne remplit pas l'historique des chaînes regardées.
                 if !isPreview { app?.recordWatched(channel) }
@@ -408,6 +452,7 @@ final class PlaybackController {
             stopHealthLoop()
             return
         }
+        if hadFirstFrame, failure == .health(.stalled) || failure == .health(.frozenVideo), adaptiveStepDown() { return }
         switch recovery.next(after: failure, hadFirstFrame: hadFirstFrame, at: now) {
         case .reload(let delay):
             statistics.recoveries += 1
@@ -499,12 +544,18 @@ final class PlaybackController {
         default: return
         }
         let sample = engine.healthSample(at: now, wantsToPlay: !isPaused)
+        if isReconnecting != sample.sourceReconnecting {
+            isReconnecting = sample.sourceReconnecting
+            if isReconnecting { log.log(.info, "lecture", "Le moteur se reconnecte à la source") }
+        }
         if let archive {
             archivePosition = max(0, archive.baseOffset + engine.currentPosition - archive.original.programmeOffset)
         }
         let verdict = monitor.evaluate(sample)
         if verdict.needsRecovery {
             handleFailure(.health(verdict))
+        } else if verdict == .healthy {
+            adaptiveStepUpIfDue()
         }
     }
 

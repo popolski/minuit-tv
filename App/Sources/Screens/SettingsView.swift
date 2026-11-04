@@ -105,6 +105,7 @@ private struct PlaybackSettings: View {
             Toggle("Bandeau d'information au zapping", isOn: binding(\.showInfoOnZap))
             Toggle("Inverser haut / bas pour zapper", isOn: binding(\.invertZapDirection))
             Toggle("Faire correspondre fréquence et plage dynamique", isOn: binding(\.matchContentFrameRate))
+            Toggle("Qualité automatique (versions HD, FHD, 4K d'une chaîne)", isOn: binding(\.adaptiveQuality))
             Picker("Moteur vidéo", selection: binding(\.enginePreference)) {
                 ForEach(EnginePreference.allCases, id: \.self) { Text($0.displayName).tag($0) }
             }

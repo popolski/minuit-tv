@@ -132,8 +132,10 @@ final class PhoneSetupServer {
             let server = (form["server"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let username = (form["username"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let password = form["password"] ?? ""
-            guard !server.isEmpty, !username.isEmpty, !password.isEmpty, let onCredentials else {
-                return LocalHTTPRequest.response(status: 400, contentType: text, body: Data("Les trois champs sont obligatoires.".utf8))
+            let isLink = XtreamCredentials.fromM3ULink(server) != nil
+            guard !server.isEmpty, isLink || (!username.isEmpty && !password.isEmpty), let onCredentials else {
+                return LocalHTTPRequest.response(status: 400, contentType: text,
+                                                 body: Data("Saisissez les trois champs, ou collez le lien M3U complet.".utf8))
             }
             log.log(.info, "configuration", "Identifiants reçus du téléphone")
             status = .signingIn

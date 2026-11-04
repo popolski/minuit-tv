@@ -362,3 +362,59 @@ final class PhoneSetupTests: XCTestCase {
         XCTAssertTrue(PhoneSetupPage.html(code: "482913").contains("value=\"482913\""))
     }
 }
+
+final class FeaturesFromAnalysisTests: XCTestCase {
+    func testM3ULinkBecomesXtreamAccount() throws {
+        let link = try XCTUnwrap(XtreamCredentials.fromM3ULink(" http://exemple.tv:8080/get.php?username=bob&password=p%2B1&type=m3u_plus&output=ts "))
+        XCTAssertEqual(link.server.host, "exemple.tv")
+        XCTAssertEqual(link.server.port, 8080)
+        XCTAssertEqual(link.username, "bob")
+        XCTAssertEqual(link.password, "p+1")
+        XCTAssertNil(XtreamCredentials.fromM3ULink("http://exemple.tv:8080"))
+        XCTAssertNil(XtreamCredentials.fromM3ULink("http://exemple.tv/get.php?username=bob"))
+        XCTAssertNil(XtreamCredentials.fromM3ULink("http://exemple.tv/liste.m3u?username=bob&password=x"))
+    }
+
+    func testAdaptiveQualityStepsDownThenBackUp() {
+        let uhd = Channel(id: ChannelID(1), name: "TF1 4K"), fhd = Channel(id: ChannelID(2), name: "TF1 FHD"), hd = Channel(id: ChannelID(3), name: "TF1 HD")
+        let variants = [fhd, hd, uhd]   // ordre de préférence : FHD par défaut
+        var policy = AdaptiveQuality()
+        policy.notePlaying(at: 0)
+        XCTAssertFalse(policy.noteStall(at: 10))
+        policy.notePlaying(at: 20)      // une reprise n'efface pas les arrêts récents
+        XCTAssertFalse(policy.noteStall(at: 60))
+        XCTAssertTrue(policy.noteStall(at: 100), "3 arrêts en 5 min : on descend")
+        XCTAssertEqual(policy.stepDown(from: fhd, among: variants, at: 100)?.id, hd.id)
+        XCTAssertEqual(policy.stepDown(from: uhd, among: variants, at: 100)?.id, fhd.id)
+        XCTAssertNil(policy.stepDown(from: hd, among: variants, at: 100), "rien en dessous")
+        policy.block(fhd.id, at: 100)
+
+        policy.notePlaying(at: 110)
+        XCTAssertNil(policy.stepUp(from: hd, among: variants, at: 500), "pas encore assez stable")
+        XCTAssertNil(policy.stepUp(from: hd, among: variants, at: 1200), "FHD écartée 30 min")
+        XCTAssertEqual(policy.stepUp(from: hd, among: variants, at: 1950)?.id, fhd.id)
+        XCTAssertNil(policy.stepUp(from: fhd, among: variants, at: 1950), "déjà sur la version par défaut")
+        XCTAssertNil(policy.stepUp(from: uhd, among: variants, at: 1950), "la 4K n'est pas « en dessous » de la FHD")
+    }
+
+    func testBrandsGroupFamiliesOfChannels() {
+        let names = ["FR: France 2", "FR: France 3", "FR: TF1", "FR: France 5", "FR: RMC Sport 1", "FR: RMC Sport 2",
+                     "FR: La Chaîne Météo", "FR: La 1ère", "FR: La Une", "FR: RMC Story"]
+        let channels = names.enumerated().map { Channel(id: ChannelID($0.offset), name: $0.element) }
+        let groups = ChannelBrands.groups(channels)
+        XCTAssertEqual(groups.map(\.name), ["France", "RMC"])
+        XCTAssertEqual(groups[0].channels.count, 3)
+    }
+
+    func testEngineReconnectGetsExtraTimeBeforeStall() {
+        var monitor = PlaybackHealthMonitor()
+        monitor.reset(at: 0)
+        _ = monitor.evaluate(HealthSample(at: 1, clockPosition: 0, firstFrameShown: true))
+        for t in stride(from: 2.0, through: 30.0, by: 1.0) {
+            let verdict = monitor.evaluate(HealthSample(at: t, clockPosition: 1, isBuffering: true, firstFrameShown: true, sourceReconnecting: true))
+            XCTAssertFalse(verdict.needsRecovery, "le moteur se reconnecte encore à \(t) s")
+        }
+        let verdict = monitor.evaluate(HealthSample(at: 31, clockPosition: 1, isBuffering: true, firstFrameShown: true, sourceReconnecting: false))
+        XCTAssertEqual(verdict, .stalled, "reconnexion abandonnée par le moteur : Minuit reprend la main")
+    }
+}

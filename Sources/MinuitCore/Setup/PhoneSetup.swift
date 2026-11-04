@@ -134,12 +134,12 @@ public enum PhoneSetupPage {
         <h1>Configurer Minuit</h1>
         <p>Saisissez les informations Xtream Codes de votre fournisseur. Elles sont envoyées à l’Apple TV, qui les range dans son trousseau.</p>
         <form id="f">
-        <label for="server">Adresse du serveur</label>
+        <label for="server">Adresse du serveur, ou lien M3U complet</label>
         <input id="server" name="server" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="http://exemple.tv:8080" required>
-        <label for="username">Identifiant</label>
-        <input id="username" name="username" autocapitalize="none" autocorrect="off" autocomplete="username" required>
-        <label for="password">Mot de passe</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <label for="username">Identifiant (inutile avec un lien M3U)</label>
+        <input id="username" name="username" autocapitalize="none" autocorrect="off" autocomplete="username">
+        <label for="password">Mot de passe (inutile avec un lien M3U)</label>
+        <input id="password" name="password" type="password" autocomplete="current-password">
         <input type="hidden" name="code" value="\(code)">
         <button type="submit">Envoyer à l’Apple TV</button>
         </form>

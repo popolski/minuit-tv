@@ -63,7 +63,15 @@ struct PlayerOverlayView: View {
             FailureView(message: message, controller: controller)
         case .idle, .playing:
             if controller.isBuffering {
-                ProgressView().scaleEffect(1.4).tint(Theme.Palette.textPrimary)
+                VStack(spacing: 22) {
+                    ProgressView().scaleEffect(1.4).tint(Theme.Palette.textPrimary)
+                    if controller.isReconnecting {
+                        Text("Reconnexion au fournisseur…").font(Theme.Typeface.label(24))
+                            .foregroundStyle(Theme.Palette.textPrimary)
+                            .padding(.horizontal, 22).padding(.vertical, 10)
+                            .background(Capsule().fill(Theme.Palette.night.opacity(0.6)))
+                    }
+                }
             }
         }
     }

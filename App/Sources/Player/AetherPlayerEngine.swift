@@ -177,8 +177,12 @@ final class AetherPlayerEngine: PlaybackEngine {
     func healthSample(at time: TimeInterval, wantsToPlay: Bool) -> HealthSample {
         let phase = engine.playbackPhase
         let buffering: Bool
+        var reconnecting = false
         switch phase {
-        case .rebuffering, .stalled, .loading: buffering = true
+        case .stalled(let isReconnecting):
+            buffering = true
+            reconnecting = isReconnecting
+        case .rebuffering, .loading: buffering = true
         default: buffering = false
         }
         // Signal vidéo indépendant de l'horloge : cadence de la piste vidéo de l'AVPlayerItem
@@ -200,7 +204,9 @@ final class AetherPlayerEngine: PlaybackEngine {
             videoFrameRate: videoTrack.map { Double($0.currentVideoFrameRate) },
             lastVideoFrameTime: nil,
             hasVideoTrack: nil,
-            hasAudio: hasAudio
+            hasAudio: hasAudio,
+            // AetherEngine relance lui-même la connexion (coupure, 429, 503) : ne pas recharger par-dessus.
+            sourceReconnecting: reconnecting
         )
     }
 

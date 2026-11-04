@@ -296,3 +296,37 @@ public struct ChannelLibrary: Sendable {
             .map(\.channel)
     }
 }
+
+/// Familles de chaînes d'une même marque (« France 2, 3, 4, 5 », « RMC Sport 1, 2 »…),
+/// pour les rangées de l'accueil. Marque = premier mot du nom, préfixe fournisseur retiré.
+public enum ChannelBrands {
+    static let ignoredWords: Set<String> = ["le", "la", "les", "l", "de", "du", "des", "the", "tv", "channel", "chaine"]
+
+    public struct Group: Sendable, Equatable {
+        public var name: String
+        public var channels: [Channel]
+    }
+
+    /// Marques comptant au moins `minimum` chaînes, les plus fournies d'abord (ordre du
+    /// catalogue à égalité), au plus `limit`.
+    public static func groups(_ channels: [Channel], minimum: Int = 3, limit: Int = 3) -> [Group] {
+        var order: [String] = []
+        var byBrand: [String: Group] = [:]
+        for channel in channels {
+            let stripped = SearchNormalizer.stripProviderPrefix(channel.name)
+            guard let key = SearchNormalizer.normalize(stripped).split(separator: " ").first.map(String.init),
+                  key.count >= 2, !ignoredWords.contains(key), !key.allSatisfy(\.isNumber) else { continue }
+            if byBrand[key] == nil {
+                let display = stripped.split(separator: " ").first.map(String.init) ?? key
+                byBrand[key] = Group(name: display, channels: [])
+                order.append(key)
+            }
+            byBrand[key]?.channels.append(channel)
+        }
+        return order.enumerated()
+            .compactMap { index, key in byBrand[key].flatMap { $0.channels.count >= minimum ? (index, $0) : nil } }
+            .sorted { ($1.1.channels.count, $0.0) < ($0.1.channels.count, $1.0) }
+            .prefix(limit)
+            .map(\.1)
+    }
+}

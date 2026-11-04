@@ -36,6 +36,10 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Lecteur : barre position / direct après une pause | ✅ | ✅ | — | ⏳ |
 | Guide : fiche du programme focalisé en tête | ✅ | ✅ | — | ⏳ |
 | Configuration par téléphone (QR code, serveur local, code à 6 chiffres) | ✅ | ✅ | ✅ (code, requêtes) | ⏳ |
+| Lien M3U converti en compte Xtream (connexion, page du téléphone) | ✅ | ⏳ | ✅ (écrit) | ⏳ |
+| Reconnexion d'AetherEngine respectée (délai de grâce, message « Reconnexion au fournisseur ») | ✅ | ⏳ | ✅ (écrit) | ⏳ |
+| Qualité automatique : descend après arrêts répétés, remonte après 15 min stables | ✅ | ⏳ | ✅ (politique, écrit) | ⏳ |
+| Accueil « À l'antenne » en rangées : vos chaînes, thèmes, marques | ✅ | ⏳ | ✅ (marques, écrit) | ⏳ |
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
 État au 2 novembre 2026 :

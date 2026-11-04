@@ -19,6 +19,20 @@ public struct XtreamCredentials: Sendable, Hashable, Codable, CustomStringConver
     public var debugDescription: String { description }
 
     public var isComplete: Bool { !username.isEmpty && !password.isEmpty }
+
+    /// Lien M3U d'un panneau Xtream (`http://hote:8080/get.php?username=…&password=…&type=m3u_plus`)
+    /// converti en compte : le guide, le replay et les catégories restent disponibles.
+    /// nil si le texte n'est pas un tel lien.
+    public static func fromM3ULink(_ raw: String) -> XtreamCredentials? {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let components = URLComponents(string: text), components.path.hasSuffix("/get.php") || components.path.hasSuffix("/player_api.php"),
+              let items = components.queryItems,
+              let username = items.first(where: { $0.name == "username" })?.value, !username.isEmpty,
+              let password = items.first(where: { $0.name == "password" })?.value, !password.isEmpty,
+              let server = try? ServerAddress.parse(text)
+        else { return nil }
+        return XtreamCredentials(server: server, username: username, password: password)
+    }
 }
 
 /// Adresse de serveur normalisée.

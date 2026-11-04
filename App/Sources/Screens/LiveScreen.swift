@@ -430,32 +430,81 @@ private struct OnAirGrid: View {
     @Environment(AppRouter.self) private var router
     var sidebarFocus: FocusState<AppRouter.LiveSection?>.Binding
 
-    private let columns = Array(repeating: GridItem(.fixed(410), spacing: 34), count: 3)
+    /// Rangée de l'accueil : titre, sous-titre, chaînes, liste de zapping associée.
+    private struct Rail: Identifiable {
+        let id: String
+        let title: String
+        let subtitle: String
+        let channels: [Channel]
+        let context: ChannelListContext
+    }
+
+    /// Thèmes reconnus dans les noms de catégories (mêmes mots-clés que leurs icônes).
+    private static let themes: [(title: String, words: [String])] = [
+        ("Sport", ["sport", "foot", "soccer", "rugby", "tennis", "f1", "nba", "bein", "dazn", "eurosport"]),
+        ("Cinéma", ["cinema", "film", "movie"]),
+        ("Info", ["info", "news", "actualite"]),
+        ("Jeunesse", ["enfant", "kids", "jeunesse", "cartoon", "junior"]),
+        ("Découverte", ["docu", "decouverte", "nature", "science", "histoire"]),
+    ]
 
     var body: some View {
-        let (channels, context, subtitle) = selection
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 14) {
-                Text("À l'antenne").font(Theme.Typeface.label(26)).foregroundStyle(Theme.Palette.textSecondary)
-                Text(subtitle).font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.textTertiary)
-            }
-            .padding(.horizontal, 12)
-            ScrollView {
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 34) {
-                    ForEach(channels) { channel in
-                        Button { router.watch(channel.id, context: context, app: app) } label: {
-                            OnAirCard(channel: channel)
+        let rails = self.rails
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 30) {
+                ForEach(rails) { rail in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .firstTextBaseline, spacing: 14) {
+                            Text(rail.title).font(Theme.Typeface.label(26)).foregroundStyle(Theme.Palette.textSecondary)
+                            Text(rail.subtitle).font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.textTertiary)
                         }
-                        .buttonStyle(GlassRowButtonStyle(cornerRadius: 22, horizontalPadding: 0, verticalPadding: 0))
-                        .accessibilityIdentifier("onair-\(channel.id.rawValue)")
-                        .onAppear { app.epg.ensureFresh([channel.id]) }
+                        .padding(.horizontal, 12)
+                        ScrollView(.horizontal) {
+                            LazyHStack(spacing: 34) {
+                                ForEach(rail.channels) { channel in
+                                    Button { router.watch(channel.id, context: rail.context, app: app) } label: {
+                                        OnAirCard(channel: channel)
+                                    }
+                                    .buttonStyle(GlassRowButtonStyle(cornerRadius: 22, horizontalPadding: 0, verticalPadding: 0))
+                                    .accessibilityIdentifier("onair-\(channel.id.rawValue)")
+                                    .onAppear { app.epg.ensureFresh([channel.id]) }
+                                }
+                            }
+                            .padding(16)
+                        }
+                        .scrollClipDisabled()
                     }
+                    .focusSection()
                 }
-                .padding(16)
+            }
+            .padding(.vertical, 20)
+        }
+        .onExitCommand { sidebarFocus.wrappedValue = .onAir }
+    }
+
+    /// « Vos chaînes », puis une rangée par thème présent dans le catalogue, puis les marques
+    /// les plus fournies. Une rangée de moins de 3 chaînes n'est pas montrée.
+    private var rails: [Rail] {
+        let (personal, personalContext, subtitle) = selection
+        var rails = [Rail(id: "personal", title: "À l'antenne", subtitle: subtitle, channels: personal, context: personalContext)]
+        let categories = app.library.visibleCategories(preferences: app.preferences)
+        for theme in Self.themes {
+            var seen = Set<ChannelID>()
+            var channels: [Channel] = []
+            for category in categories where theme.words.contains(where: { SearchNormalizer.normalize(category.name).contains($0) }) {
+                for channel in app.channels(in: .category(category.id)) where channels.count < 20 && seen.insert(channel.id).inserted {
+                    channels.append(channel)
+                }
+            }
+            if channels.count >= 3 {
+                rails.append(Rail(id: "theme-\(theme.title)", title: theme.title, subtitle: "en ce moment", channels: channels, context: .all))
             }
         }
-        .padding(.top, 20)
-        .onExitCommand { sidebarFocus.wrappedValue = .onAir }
+        for group in ChannelBrands.groups(app.channels(in: .all)) {
+            rails.append(Rail(id: "brand-\(group.name)", title: group.name, subtitle: "toutes ses chaînes",
+                              channels: Array(group.channels.prefix(20)), context: .all))
+        }
+        return rails
     }
 
     /// Favoris d'abord, puis chaînes récentes, complétés par le reste du catalogue

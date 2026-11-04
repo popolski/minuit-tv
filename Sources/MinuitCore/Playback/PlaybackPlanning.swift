@@ -117,3 +117,75 @@ public struct PlaybackMemory: Sendable, Codable, Equatable {
         order.removeAll { $0 == channel }
     }
 }
+
+/// Qualité adaptative entre les versions d'une chaîne (HD, FHD, 4K…) : descend d'un cran
+/// quand l'image s'arrête à répétition, remonte vers la version par défaut après une longue
+/// période stable. Une version qui a calé est écartée un moment, pour éviter les allers-retours
+/// (chaque changement coupe l'image une seconde).
+public struct AdaptiveQuality: Sendable, Equatable {
+    public var stallWindow: TimeInterval = 300
+    public var stallsBeforeStepDown = 3
+    public var stableBeforeStepUp: TimeInterval = 900
+    public var blockDuration: TimeInterval = 1800
+
+    private var stalls: [TimeInterval] = []
+    private var stableSince: TimeInterval?
+    private var blockedUntil: [ChannelID: TimeInterval] = [:]
+
+    public init() {}
+
+    /// Nouvelle chaîne (pas une autre version de la même) : on repart de zéro, sauf les versions écartées.
+    public mutating func reset() {
+        stalls = []
+        stableSince = nil
+    }
+
+    /// Image affichée (premier chargement ou reprise après un arrêt) : point de départ de la
+    /// période stable. Les arrêts récents restent comptés : une reprise ne les efface pas.
+    public mutating func notePlaying(at time: TimeInterval) {
+        stableSince = time
+    }
+
+    /// Arrêt de l'image ; vrai quand il faut descendre d'un cran.
+    public mutating func noteStall(at time: TimeInterval) -> Bool {
+        stableSince = nil
+        stalls = stalls.filter { time - $0 < stallWindow } + [time]
+        return stalls.count >= stallsBeforeStepDown
+    }
+
+    public mutating func block(_ id: ChannelID, at time: TimeInterval) {
+        blockedUntil[id] = time + blockDuration
+    }
+
+    public func isBlocked(_ id: ChannelID, at time: TimeInterval) -> Bool {
+        (blockedUntil[id] ?? 0) > time
+    }
+
+    /// Définition annoncée : 4K > FHD > HD > sans mention > SD.
+    public static func resolutionRank(_ channel: Channel) -> Int {
+        switch QualityBadge.parse(channel.name) {
+        case .uhd: return 4
+        case .fhd: return 3
+        case .hd: return 2
+        case nil: return 1
+        case .sd: return 0
+        }
+    }
+
+    /// Version de définition immédiatement inférieure, non écartée.
+    public func stepDown(from current: Channel, among variants: [Channel], at time: TimeInterval) -> Channel? {
+        let rank = Self.resolutionRank(current)
+        return variants
+            .filter { Self.resolutionRank($0) < rank && !isBlocked($0.id, at: time) }
+            .max { Self.resolutionRank($0) < Self.resolutionRank($1) }
+    }
+
+    /// Retour à la version par défaut (première de `variants`) quand elle est meilleure,
+    /// non écartée, et que la version actuelle tient depuis assez longtemps.
+    public func stepUp(from current: Channel, among variants: [Channel], at time: TimeInterval) -> Channel? {
+        guard let stableSince, time - stableSince >= stableBeforeStepUp, let preferred = variants.first,
+              preferred.id != current.id, Self.resolutionRank(preferred) > Self.resolutionRank(current),
+              !isBlocked(preferred.id, at: time) else { return nil }
+        return preferred
+    }
+}

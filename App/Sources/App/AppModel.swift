@@ -98,12 +98,18 @@ final class AppModel {
     }
 
     func signIn(server: String, username: String, password: String) async {
-        let address: ServerAddress
-        do { address = try ServerAddress.parse(server) } catch {
-            phase = .signedOut(message: XtreamError.invalidServerAddress.userMessage)
-            return
+        let candidate: XtreamCredentials
+        if let link = XtreamCredentials.fromM3ULink(server) {
+            // Lien M3U collé dans le champ serveur : il contient déjà identifiant et mot de passe.
+            candidate = link
+        } else {
+            let address: ServerAddress
+            do { address = try ServerAddress.parse(server) } catch {
+                phase = .signedOut(message: XtreamError.invalidServerAddress.userMessage)
+                return
+            }
+            candidate = XtreamCredentials(server: address, username: username, password: password)
         }
-        let candidate = XtreamCredentials(server: address, username: username, password: password)
         phase = .loading("Vérification du compte…")
         configureClient(candidate)
         do {

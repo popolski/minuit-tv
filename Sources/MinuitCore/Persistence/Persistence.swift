@@ -159,6 +159,8 @@ public struct AppSettings: Sendable, Codable, Equatable {
     /// Accepte les certificats HTTPS non vérifiés du fournisseur (flux redirigés vers un
     /// HTTPS auto-signé). Activé par défaut sur décision de l'utilisateur ; désactivable.
     public var acceptInvalidStreamCertificates: Bool = true
+    /// Change seul de version d'une chaîne (HD, FHD, 4K) selon la tenue du flux.
+    public var adaptiveQuality: Bool = true
 
     public init() {}
 
@@ -166,7 +168,7 @@ public struct AppSettings: Sendable, Codable, Equatable {
         // Clé renommée : l'ancienne valeur (activée par défaut) est volontairement ignorée.
         case resumeLastChannelOnLaunch = "resumeLastChannelAtLaunch"
         case enginePreference, transportSecurity, userAgentPreset, catchup, invertZapDirection,
-             showInfoOnZap, matchContentFrameRate, useXMLTV, epgDaysAhead, acceptInvalidStreamCertificates
+             showInfoOnZap, matchContentFrameRate, useXMLTV, epgDaysAhead, acceptInvalidStreamCertificates, adaptiveQuality
     }
 
     /// Décodage tolérant : un réglage absent ou illisible prend sa valeur par défaut au lieu
@@ -185,6 +187,7 @@ public struct AppSettings: Sendable, Codable, Equatable {
         useXMLTV = c.tolerant(.useXMLTV) ?? d.useXMLTV
         epgDaysAhead = c.tolerant(.epgDaysAhead) ?? d.epgDaysAhead
         acceptInvalidStreamCertificates = c.tolerant(.acceptInvalidStreamCertificates) ?? d.acceptInvalidStreamCertificates
+        adaptiveQuality = c.tolerant(.adaptiveQuality) ?? d.adaptiveQuality
     }
 }
 
