@@ -32,14 +32,14 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Bandeau : retard sur le direct après une pause, Retour pour rattraper | ✅ | ✅ | ✅ (calcul du retard) | ⏳ |
 | Aide de la télécommande (lecteur, écran Direct) | ✅ | ✅ | — | ⏳ |
 | Diagnostic réseau local / Internet / fournisseur (panneau Informations, écran d'échec) | ✅ | ✅ | ✅ (conclusion) | ⏳ |
-| Versions d'une chaîne regroupées (HD/FHD/4K), choix et repli automatique | ✅ | ⏳ | ✅ (regroupement, écrit) | ⏳ |
-| Lecteur : barre position / direct après une pause | ✅ | ⏳ | — | ⏳ |
-| Guide : fiche du programme focalisé en tête | ✅ | ⏳ | — | ⏳ |
-| Configuration par téléphone (QR code, serveur local, code à 6 chiffres) | ✅ | ⏳ | ✅ (code, requêtes, écrit) | ⏳ |
+| Versions d'une chaîne regroupées (HD/FHD/4K), choix et repli automatique | ✅ | ✅ | ✅ (regroupement) | ⏳ |
+| Lecteur : barre position / direct après une pause | ✅ | ✅ | — | ⏳ |
+| Guide : fiche du programme focalisé en tête | ✅ | ✅ | — | ⏳ |
+| Configuration par téléphone (QR code, serveur local, code à 6 chiffres) | ✅ | ✅ | ✅ (code, requêtes) | ⏳ |
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
 État au 2 novembre 2026 :
-- **91 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
+- **95 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
 - **Application tvOS compilée** par la CI (image `xcode-27`, Xcode 27.1), sans avertissement
   dans le code de Minuit ; IPA vérifiée (arm64, tvOS, frameworks FFmpeg) — Release `build-3`.
 - **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur
