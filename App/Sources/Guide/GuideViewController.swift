@@ -286,6 +286,7 @@ struct GuideScreen: View {
     @State private var showDetail = false
     @State private var proxy = GuideProxy()
     @State private var focus: (programme: Programme?, channel: Channel)?
+    @State private var pendingChoice: ProgrammeDetailView.Choice?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -323,9 +324,17 @@ struct GuideScreen: View {
         }
         .padding(.top, 10)
         .onExitCommand { backToTopBar() }
-        .sheet(isPresented: $showDetail) {
+        .sheet(isPresented: $showDetail, onDismiss: {
+            // Le lecteur ne s'ouvre qu'une fois la fiche refermée (voir ProgrammeDetailView).
+            guard let choice = pendingChoice, let selected else { return }
+            pendingChoice = nil
+            switch choice {
+            case .replay: router.watchArchive(selected.programme, app: app)
+            case .live: router.watch(selected.channel.id, context: .all, app: app)
+            }
+        }) {
             if let selected {
-                ProgrammeDetailView(programme: selected.programme, channel: selected.channel)
+                ProgrammeDetailView(programme: selected.programme, channel: selected.channel) { pendingChoice = $0 }
             }
         }
     }

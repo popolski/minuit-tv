@@ -57,7 +57,9 @@ locale : il ne prouve rien sur les flux réels du fournisseur.
 
 - Lecture HD / Full HD OK ; 4K non (probablement côté fournisseur, à confirmer).
 - Zapping fluide ; panneaux ◀ ▶ OK ; guide OK ; veille, réseau : OK.
-- Replay : problème à diagnostiquer (journal `replay` attendu).
+- Replay (build 26) : sondage OK et première image reçue, mais rien à l'écran. Cause probable
+  corrigée en build 27 : le lecteur s'ouvrait pendant la fermeture de la fiche du guide (feuille),
+  présentation ignorée par tvOS. Repère « Lecteur affiché » ajouté au journal. À vérifier.
 - Build 10 : barre du haut visible (corrigé : le fond agrandissait la mise en page).
 
 ## Limites connues et incertitudes

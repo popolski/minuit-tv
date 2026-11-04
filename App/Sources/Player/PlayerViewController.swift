@@ -52,6 +52,8 @@ final class PlayerViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         becomeFirstResponder()
+        // Repère du journal : une lecture sans « Lecteur affiché » n'a jamais eu d'écran.
+        DiagnosticsLog.shared.log(.info, "lecture", "Lecteur affiché")
     }
 
     override func viewWillDisappear(_ animated: Bool) {

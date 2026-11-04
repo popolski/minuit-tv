@@ -2,12 +2,18 @@ import SwiftUI
 import MinuitCore
 
 /// Fiche programme (depuis le guide) : description, disponibilité réelle du replay, actions.
+///
+/// La fiche est une feuille : le lecteur (plein écran) ne peut s'ouvrir qu'une fois la feuille
+/// refermée, sinon tvOS ignore la présentation et la lecture part sans image. L'action choisie
+/// est donc remise à l'appelant, qui la lance après la fermeture.
 struct ProgrammeDetailView: View {
+    enum Choice { case replay, live }
+
     @Environment(AppModel.self) private var app
-    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     let programme: Programme
     let channel: Channel
+    let onChoose: (Choice) -> Void
 
     var body: some View {
         let now = Date().addingTimeInterval(app.session?.server.clockSkew ?? 0)
@@ -36,15 +42,15 @@ struct ProgrammeDetailView: View {
                 HStack(spacing: 30) {
                     if availability.window != nil {
                         Button {
+                            onChoose(.replay)
                             dismiss()
-                            router.watchArchive(programme, app: app)
                         } label: {
                             Label(programme.isAiring(at: now) ? "Reprendre au début" : "Regarder en replay", systemImage: "play.fill")
                         }
                     }
                     Button {
+                        onChoose(.live)
                         dismiss()
-                        router.watch(channel.id, context: .all, app: app)
                     } label: { Label("Regarder la chaîne en direct", systemImage: "dot.radiowaves.left.and.right") }
                 }
                 .padding(.top, 12)
