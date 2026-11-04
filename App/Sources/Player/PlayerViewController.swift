@@ -10,6 +10,7 @@ import MinuitCore
 ///  ◀ : panneau des chaînes     ▶ : panneau des programmes (replay)
 ///  Clic central : commandes (pistes, favori, format…)     Appui long central : favori
 ///  Lecture/Pause : pause du direct (tampon local)     Retour : ferme le panneau, puis le lecteur
+///  Après une pause, Retour revient d'abord au direct (le retard s'affiche dans le bandeau).
 /// En replay : ◀ / ▶ = −30 s / +30 s, ▲ / ▼ = barre de transport (Début, Direct…).
 final class PlayerViewController: UIViewController {
     private let app: AppModel
@@ -178,7 +179,10 @@ final class PlayerViewController: UIViewController {
             controller.togglePlayPause()
             controller.showBanner()
         case .menu:
-            if controller.bannerVisible {
+            if controller.liveDelay(at: Date()) >= 1 || (controller.isLive && controller.isPaused) {
+                // Après une pause, Retour rattrape d'abord le direct (puis ferme, au second appui).
+                controller.catchUpLive()
+            } else if controller.bannerVisible {
                 controller.hideOverlays()
             } else {
                 dismissPlayer()

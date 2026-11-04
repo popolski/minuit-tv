@@ -116,6 +116,12 @@ private struct FailureView: View {
                     }
                     .buttonStyle(GlassRowButtonStyle(cornerRadius: 40, horizontalPadding: 34, verticalPadding: 16))
                     .fixedSize()
+                    // « Réseau ou fournisseur ? » : le panneau Informations mesure les trois.
+                    Button { controller.panel = .tracks } label: {
+                        Label("Tester la connexion", systemImage: "network").font(Theme.Typeface.label(24)).primaryText()
+                    }
+                    .buttonStyle(GlassRowButtonStyle(cornerRadius: 40, horizontalPadding: 34, verticalPadding: 16))
+                    .fixedSize()
                 }
             }
             .frame(maxWidth: 1100)
@@ -131,13 +137,17 @@ private struct LiveChrome: View {
     let showsControls: Bool
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 15)) { context in
+        // Chaque seconde pendant une pause : le retard sur le direct défile.
+        TimelineView(.periodic(from: .now, by: controller.isPaused ? 1 : 15)) { context in
             if let id = controller.displayedChannel, let channel = app.library.channel(id) {
-                let (current, next) = app.epg.nowNext(channel.id, at: context.date)
+                let delay = controller.liveDelay(at: context.date)
+                // Programme à la position regardée (en retard après une pause), pas à l'heure murale.
+                let watched = context.date.addingTimeInterval(-delay)
+                let (current, next) = app.epg.nowNext(channel.id, at: watched)
                 VStack(spacing: 0) {
-                    top(channel: channel, current: current, now: context.date)
+                    top(channel: channel, current: current, now: context.date, delay: delay)
                     Spacer()
-                    bottom(current: current, next: next, now: context.date)
+                    bottom(current: current, next: next, now: watched)
                 }
                 .onAppear { app.epg.ensureFresh([channel.id]) }
             }
@@ -145,7 +155,7 @@ private struct LiveChrome: View {
         .ignoresSafeArea()
     }
 
-    private func top(channel: Channel, current: Programme?, now: Date) -> some View {
+    private func top(channel: Channel, current: Programme?, now: Date, delay: TimeInterval) -> some View {
         HStack(alignment: .top, spacing: 22) {
             ChannelLogoView(channel: channel, size: CGSize(width: 132, height: 74))
             VStack(alignment: .leading, spacing: 6) {
@@ -169,14 +179,29 @@ private struct LiveChrome: View {
                             .foregroundStyle(Theme.Palette.textPrimary)
                     }
                     StatusBadge(kind: .live)
+                    if let label = LiveDelayClock.label(delay) {
+                        // Retard sur le direct, en braise : le temps réel est la référence.
+                        Text(label).font(Theme.Typeface.time(28)).foregroundStyle(Theme.Palette.ember)
+                    }
                 }
                 Text(now.clockText).font(Theme.Typeface.time(30)).foregroundStyle(Theme.Palette.textPrimary)
+                if !showsControls {
+                    Text(remoteHint(delayed: delay >= 1))
+                        .font(Theme.Typeface.caption(19)).foregroundStyle(Theme.Palette.textTertiary)
+                }
             }
         }
         .padding(.horizontal, Theme.Metrics.safeHorizontal)
         .padding(.top, Theme.Metrics.safeVertical)
         .padding(.bottom, 60)
         .background(Theme.Palette.scrimTop)
+    }
+
+    /// Rappel discret des gestes utiles dans l'état courant.
+    private func remoteHint(delayed: Bool) -> String {
+        if controller.isPaused { return "Lecture/Pause : reprendre · Retour : revenir au direct" }
+        if delayed { return "Retour : revenir au direct · Clic : commandes" }
+        return "▲▼ Zapper · ◀ Chaînes · ▶ Programmes · Clic : commandes"
     }
 
     private func metaLine(channel: Channel) -> String {
@@ -207,9 +232,6 @@ private struct LiveChrome: View {
                 if let next {
                     Text("Ensuite à \(next.start.clockText) · \(next.title)")
                         .font(Theme.Typeface.body(24)).foregroundStyle(Theme.Palette.textSecondary).lineLimit(1)
-                } else if !showsControls {
-                    Text("Clic central : commandes · ◀ chaînes · ▶ programmes")
-                        .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textTertiary)
                 }
                 Spacer()
                 if showsControls {
@@ -583,6 +605,71 @@ private struct TransportPanel: View {
     }
 }
 
+// MARK: - Diagnostic « réseau ou fournisseur ? »
+
+/// Trois vérifications (réseau local, Internet, serveur du fournisseur) et une conclusion.
+private struct ConnectionSection: View {
+    let controller: PlaybackController
+    @State private var check: PlaybackController.ConnectionCheck?
+    @State private var running = false
+    @State private var unavailable = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Connexion").sectionHeader().padding(.leading, 22).padding(.top, 14)
+            if let check {
+                row("Réseau local", check.networkDetail, check.report.network)
+                row("Internet", check.internetDetail, check.report.internet)
+                row("Fournisseur", check.providerDetail, check.report.provider)
+                Text(check.report.conclusion).font(Theme.Typeface.body(22))
+                    .foregroundStyle(Theme.Palette.textPrimary).padding(.horizontal, 22).padding(.top, 4)
+            } else if unavailable {
+                Text("Diagnostic indisponible sans session.").font(Theme.Typeface.body(22))
+                    .foregroundStyle(Theme.Palette.textSecondary).padding(.horizontal, 22)
+            } else {
+                HStack(spacing: 14) {
+                    ProgressView().tint(Theme.Palette.textSecondary)
+                    Text("Mesure en cours…").font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
+                }
+                .padding(.horizontal, 22)
+            }
+            Button { Task { await run() } } label: {
+                Label("Tester à nouveau", systemImage: "arrow.clockwise").font(Theme.Typeface.label(22)).primaryText()
+            }
+            .buttonStyle(GlassRowButtonStyle(horizontalPadding: 22, verticalPadding: 12))
+            .disabled(running)
+        }
+        .task { await run() }
+    }
+
+    private func run() async {
+        guard !running else { return }
+        running = true
+        check = nil
+        check = await controller.checkConnection()
+        unavailable = check == nil
+        running = false
+    }
+
+    private func row(_ title: String, _ detail: String, _ status: ConnectionReport.Status) -> some View {
+        HStack(spacing: 14) {
+            Circle().fill(color(status)).frame(width: 12, height: 12)
+            Text(title).font(Theme.Typeface.label(22)).foregroundStyle(Theme.Palette.textPrimary)
+            Spacer()
+            Text(detail).font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary).lineLimit(1)
+        }
+        .padding(.horizontal, 22)
+    }
+
+    private func color(_ status: ConnectionReport.Status) -> Color {
+        switch status {
+        case .ok: return .green
+        case .slow: return .orange
+        case .failed: return Theme.Palette.danger
+        }
+    }
+}
+
 // MARK: - Pistes audio et informations
 
 private struct TracksPanel: View {
@@ -613,6 +700,7 @@ private struct TracksPanel: View {
                     Text("Informations").sectionHeader().padding(.leading, 22).padding(.top, 14)
                     Text(controller.technicalSummary).font(Theme.Typeface.caption(20))
                         .foregroundStyle(Theme.Palette.textSecondary).padding(.horizontal, 22)
+                    ConnectionSection(controller: controller)
                 }
                 .padding(18)
                 .frame(width: 720)

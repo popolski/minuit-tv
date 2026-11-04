@@ -268,6 +268,9 @@ private struct ChannelDetailPanel: View {
                     .padding(.top, 4)
                 }
                 Spacer(minLength: 0)
+                Text("OK : plein écran · Maintenir OK : favoris")
+                    .font(Theme.Typeface.caption(19)).foregroundStyle(Theme.Palette.textTertiary)
+                    .padding(.bottom, 24)
             }
             .padding(.top, 70)
         }

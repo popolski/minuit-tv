@@ -55,6 +55,47 @@ public struct ZapAccumulator: Sendable, Equatable {
     }
 }
 
+/// Retard sur le direct accumulé par les pauses (le tampon local du moteur garde l'image).
+/// Plafonné à la taille de ce tampon. Remis à zéro à chaque chargement ou retour au direct.
+// ponytail: ne compte que les pauses, pas les arrêts de mise en mémoire tampon ; lire la
+// position réelle du moteur dans son tampon si les deux moteurs l'exposent un jour.
+public struct LiveDelayClock: Sendable, Equatable {
+    public let limit: TimeInterval
+    private var accumulated: TimeInterval = 0
+    private var pausedAt: Date?
+
+    public init(limit: TimeInterval = 600) {
+        self.limit = limit
+    }
+
+    public mutating func pause(at date: Date) {
+        if pausedAt == nil { pausedAt = date }
+    }
+
+    public mutating func resume(at date: Date) {
+        accumulated = delay(at: date)
+        pausedAt = nil
+    }
+
+    public mutating func reset() {
+        accumulated = 0
+        pausedAt = nil
+    }
+
+    public func delay(at date: Date) -> TimeInterval {
+        let running = pausedAt.map { max(0, date.timeIntervalSince($0)) } ?? 0
+        return min(limit, accumulated + running)
+    }
+
+    /// « −12:36 », ou nil sous une seconde de retard.
+    public static func label(_ delay: TimeInterval) -> String? {
+        let total = Int(delay)
+        guard total >= 1 else { return nil }
+        return total >= 3600 ? String(format: "−%d:%02d:%02d", total / 3600, (total % 3600) / 60, total % 60)
+                             : String(format: "−%d:%02d", total / 60, total % 60)
+    }
+}
+
 /// Raisons d'échec d'un chargement, indépendantes du moteur.
 public enum PlaybackFailure: Sendable, Equatable {
     case network

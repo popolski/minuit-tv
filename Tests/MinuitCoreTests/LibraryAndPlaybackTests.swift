@@ -265,3 +265,37 @@ final class HealthMonitorTests: XCTestCase {
         XCTAssertEqual(windowed.next(after: .network, hadFirstFrame: true, at: 100), .reload(after: 1), "budget renouvelé après la fenêtre")
     }
 }
+
+final class LiveDelayAndDiagnosisTests: XCTestCase {
+    func testLiveDelayAccumulatesPausesAndIsCapped() {
+        var clock = LiveDelayClock(limit: 600)
+        let t0 = utc("2026-11-04 20:00")
+        XCTAssertEqual(clock.delay(at: t0), 0)
+        XCTAssertNil(LiveDelayClock.label(0.4))
+
+        clock.pause(at: t0)
+        clock.pause(at: t0.addingTimeInterval(30))          // second appui ignoré
+        XCTAssertEqual(clock.delay(at: t0.addingTimeInterval(90)), 90, "le retard grandit pendant la pause")
+        clock.resume(at: t0.addingTimeInterval(90))
+        XCTAssertEqual(clock.delay(at: t0.addingTimeInterval(500)), 90, "figé pendant la lecture")
+        XCTAssertEqual(LiveDelayClock.label(90), "−1:30")
+
+        clock.pause(at: t0.addingTimeInterval(600))
+        XCTAssertEqual(clock.delay(at: t0.addingTimeInterval(2000)), 600, "plafonné au tampon local")
+        clock.reset()
+        XCTAssertEqual(clock.delay(at: t0.addingTimeInterval(3000)), 0)
+    }
+
+    func testConnectionConclusionNamesTheCulprit() {
+        XCTAssertEqual(ConnectionReport(network: .failed, internet: .failed, provider: .failed).conclusion,
+                       "L'Apple TV n'est pas connectée au réseau.")
+        XCTAssertTrue(ConnectionReport(network: .ok, internet: .failed, provider: .failed).conclusion.contains("box"))
+        XCTAssertTrue(ConnectionReport(network: .ok, internet: .ok, provider: .failed).conclusion.contains("fournisseur"))
+        XCTAssertEqual(ConnectionReport(network: .ok, internet: .ok, provider: .ok, providerError: .tooManyConnections(max: 1)).conclusion,
+                       XtreamError.tooManyConnections(max: 1).userMessage)
+        XCTAssertTrue(ConnectionReport(network: .ok, internet: .ok, provider: .slow).conclusion.contains("lentement"))
+        XCTAssertEqual(ConnectionReport.status(latency: nil), .failed)
+        XCTAssertEqual(ConnectionReport.status(latency: 0.2), .ok)
+        XCTAssertEqual(ConnectionReport.status(latency: 2.5), .slow)
+    }
+}

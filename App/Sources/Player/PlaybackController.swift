@@ -79,6 +79,10 @@ final class PlaybackController {
     @ObservationIgnored private var suspendedTarget: PlaybackTarget?
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
     @ObservationIgnored private var networkAvailable = true
+    /// Interface réseau active (« Wi-Fi », « Ethernet »…), pour le diagnostic.
+    @ObservationIgnored private(set) var networkInterface = "Inconnue"
+    /// Retard sur le direct dû aux pauses (observé : le bandeau l'affiche).
+    private var delayClock = LiveDelayClock()
     @ObservationIgnored private let log = DiagnosticsLog.shared
     @ObservationIgnored weak var app: AppModel?
     /// Mode démo (`-uitest`) : vidéo locale à la place des flux du fournisseur.
@@ -88,7 +92,12 @@ final class PlaybackController {
         hostView.backgroundColor = .black
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let satisfied = path.status == .satisfied
-            Task { @MainActor in self?.networkChanged(available: satisfied) }
+            let interface = path.usesInterfaceType(.wiredEthernet) ? "Ethernet"
+                : path.usesInterfaceType(.wifi) ? "Wi-Fi" : satisfied ? "Autre" : "Aucune"
+            Task { @MainActor in
+                self?.networkInterface = interface
+                self?.networkChanged(available: satisfied)
+            }
         }
         pathMonitor.start(queue: DispatchQueue(label: "minuit.network"))
     }
@@ -226,6 +235,7 @@ final class PlaybackController {
         if archive != nil { archive?.format = attempt.format }
         hadFirstFrame = false
         isBuffering = false
+        delayClock.reset()   // tout chargement repart du point de direct
         phase = .tuning
         monitor.reset(at: now)
         stableTask?.cancel()
@@ -518,10 +528,93 @@ final class PlaybackController {
         if isPaused {
             engine.play()
             isPaused = false
+            if isLive { delayClock.resume(at: Date()) }
         } else {
             engine.pause()
             isPaused = true
+            if isLive { delayClock.pause(at: Date()) }
         }
+    }
+
+    /// Retard sur le direct (0 hors direct ou sans pause).
+    func liveDelay(at date: Date) -> TimeInterval {
+        isLive ? delayClock.delay(at: date) : 0
+    }
+
+    /// Rattrape le direct après une pause.
+    func catchUpLive() {
+        guard isLive, let engine else { return }
+        delayClock.reset()
+        if isPaused {
+            isPaused = false
+            engine.play()
+        }
+        Task { await engine.seekToLiveEdge() }
+        showBanner()
+        showToast("Retour au direct")
+    }
+
+    // MARK: Diagnostic de connexion
+
+    struct ConnectionCheck {
+        var report: ConnectionReport
+        var networkDetail: String
+        var internetDetail: String
+        var providerDetail: String
+    }
+
+    /// Réseau local, Internet (page de test d'Apple) puis serveur du fournisseur
+    /// (`player_api`, qui ne consomme pas de connexion de flux).
+    func checkConnection() async -> ConnectionCheck? {
+        guard let app, let client = app.client else { return nil }
+        let network: ConnectionReport.Status = networkAvailable ? .ok : .failed
+
+        let internetStart = ContinuousClock.now
+        var internetLatency: TimeInterval?
+        if let url = URL(string: "https://www.apple.com/library/test/success.html"),
+           let response = try? await client.http.send(HTTPRequest(url: url, timeout: 6)),
+           (200..<400).contains(response.statusCode) {
+            internetLatency = Self.seconds(since: internetStart)
+        }
+
+        let probe = XtreamClient(credentials: client.credentials, http: client.http, policy: client.policy, retry: .none)
+        let providerStart = ContinuousClock.now
+        var providerLatency: TimeInterval?
+        var providerError: XtreamError?
+        var account: AccountInfo?
+        do {
+            account = try await probe.authenticate().account
+            providerLatency = Self.seconds(since: providerStart)
+        } catch {
+            switch error {
+            case .transport, .http(500...599): break   // serveur injoignable ou en panne
+            default:
+                // Le serveur répond, mais refuse : la cause est côté compte.
+                providerLatency = Self.seconds(since: providerStart)
+                providerError = error
+            }
+        }
+
+        let report = ConnectionReport(network: network,
+                                      internet: ConnectionReport.status(latency: internetLatency),
+                                      provider: ConnectionReport.status(latency: providerLatency),
+                                      providerError: providerError)
+        var providerDetail = Self.latencyText(providerLatency)
+        if let account, let max = account.maxConnections, max > 0 {
+            providerDetail += " · \(account.activeConnections ?? 0)/\(max) connexions"
+        }
+        log.log(.info, "diagnostic", "Réseau \(networkInterface) \(network) · Internet \(report.internet) · Fournisseur \(report.provider) — \(report.conclusion)")
+        return ConnectionCheck(report: report, networkDetail: networkAvailable ? networkInterface : "Déconnecté",
+                               internetDetail: Self.latencyText(internetLatency), providerDetail: providerDetail)
+    }
+
+    private static func seconds(since start: ContinuousClock.Instant) -> TimeInterval {
+        let elapsed = ContinuousClock.now - start
+        return Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+    }
+
+    private static func latencyText(_ latency: TimeInterval?) -> String {
+        latency.map { "répond en \(Int(($0 * 1000).rounded())) ms" } ?? "ne répond pas"
     }
 
     // MARK: Replay / Start Over
@@ -616,7 +709,8 @@ final class PlaybackController {
         bannerTask?.cancel()
         bannerTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-            guard let self, !Task.isCancelled, self.panel == .none else { return }
+            // En pause, le bandeau reste : il montre le retard qui grandit.
+            guard let self, !Task.isCancelled, self.panel == .none, !self.isPaused else { return }
             self.bannerVisible = false
         }
     }

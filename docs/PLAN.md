@@ -11,8 +11,8 @@
 | 7 | EPG et zapping (guide, mini-guide, panneaux) | ✅ écrit, ✅ compilé |
 | 8 | Catch-up et Start Over | ✅ écrit, ✅ compilé |
 | 9 | Tests automatisés et vérifications statiques | ✅ (cœur) |
-| 10 | Build macOS automatique (méthode Lanterne) | ✅ Release `build-3` |
-| 11 | Installation atvloadly, qualification sur Apple TV avec vos retours | 🔄 installé, connexion OK |
+| 10 | Build macOS automatique (méthode Lanterne) | ✅ à chaque push (Release `build-N`) |
+| 11 | Installation atvloadly, qualification sur Apple TV avec vos retours | 🔄 lecture, zapping, guide OK ; replay à diagnostiquer |
 
 ## Parcours principaux
 
@@ -34,8 +34,8 @@
 | ▶ | Panneau des programmes | +30 s |
 | Clic central | Bandeau d'information | Barre de transport |
 | Appui long central | Favori ajouté/retiré | — |
-| Lecture/Pause | Pause du direct (tampon 10 min) | Lecture/Pause |
-| Retour | Ferme le panneau, puis le lecteur | idem |
+| Lecture/Pause | Pause du direct (tampon 10 min, retard affiché dans le bandeau) | Lecture/Pause |
+| Retour | Après une pause : revient au direct ; sinon ferme le panneau, puis le lecteur | Ferme le panneau, puis le lecteur |
 
 ## Suite envisagée après qualification
 
