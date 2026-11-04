@@ -40,7 +40,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Reconnexion d'AetherEngine respectée (délai de grâce, message « Reconnexion au fournisseur ») | ✅ | ✅ | ✅ | ⏳ |
 | Qualité automatique : descend après arrêts répétés, remonte après 15 min stables | ✅ | ✅ | ✅ (politique) | ⏳ |
 | Accueil « À l'antenne » en rangées : vos chaînes, thèmes, marques | ✅ | ✅ | ✅ (marques) | ⏳ |
-| Guide : groupes de chaînes (Favoris, Toutes, Récentes, catégories), légende, grille resserrée | ✅ | ⏳ | — | ⏳ |
+| Guide : groupes de chaînes (Favoris, Toutes, Récentes, catégories), légende, grille resserrée | ✅ | ✅ | — | ⏳ |
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
 État au 2 novembre 2026 :
