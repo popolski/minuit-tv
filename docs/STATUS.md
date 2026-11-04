@@ -41,13 +41,13 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Qualité automatique : descend après arrêts répétés, remonte après 15 min stables | ✅ | ✅ | ✅ (politique) | ⏳ |
 | Accueil « À l'antenne » en rangées : vos chaînes, thèmes, marques | ✅ | ✅ | ✅ (marques) | ⏳ |
 | Guide : groupes de chaînes (Favoris, Toutes, Récentes, catégories), légende, grille resserrée | ✅ | ✅ | — | ⏳ |
-| Guide XMLTV supplémentaire (adresse, .xml.gz), complète les chaînes non couvertes | ✅ | ⏳ | ✅ (gzip, écrit) | ⏳ |
-| Noms de chaînes simplifiés (sans préfixe ni qualité), réglable | ✅ | ⏳ | ✅ (écrit) | ⏳ |
-| Aperçu vidéo muet dans la fiche du guide, réglable | ✅ | ⏳ | — | ⏳ |
+| Guide XMLTV supplémentaire (adresse, .xml.gz), complète les chaînes non couvertes | ✅ | ✅ | ✅ (gzip) | ⏳ |
+| Noms de chaînes simplifiés (sans préfixe ni qualité), réglable | ✅ | ✅ | ✅ | ⏳ |
+| Aperçu vidéo muet dans la fiche du guide, réglable | ✅ | ✅ | — | ⏳ |
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
 
 État au 2 novembre 2026 :
-- **99 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
+- **102 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
 - **Application tvOS compilée** par la CI (image `xcode-27`, Xcode 27.1), sans avertissement
   dans le code de Minuit ; IPA vérifiée (arm64, tvOS, frameworks FFmpeg) — Release `build-3`.
 - **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur
