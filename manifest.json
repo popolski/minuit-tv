@@ -1,0 +1,230 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "674C290D-EE00-4F38-AD87-295BD1E0897C.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "12-diagnostics_0_9945983E-52BE-45FB-AB75-2118ABB65FAE.png",
+        "timestamp" : 1793895421.303
+      }
+    ],
+    "testIdentifier" : "MinuitUITests/testDiagnosticsLayout()",
+    "testIdentifierURL" : "test://com.apple.xcode/Minuit/MinuitUITests/MinuitUITests/testDiagnosticsLayout"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "637D292A-4DF7-44B8-A705-7786D6E96FB2.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "01-lancement_0_A0155D0D-B6C9-4BC3-9ABE-63E35E7BC533.png",
+        "timestamp" : 1793895434.062
+      }
+    ],
+    "testIdentifier" : "MinuitUITests/testLaunchLandsOnMenu()",
+    "testIdentifierURL" : "test://com.apple.xcode/Minuit/MinuitUITests/MinuitUITests/testLaunchLandsOnMenu"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "28F98733-E563-4A66-81E5-97FBC59C332B.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "23-pistes-film_0_D592584E-8C43-429D-BEA4-6DC59531AE48.png",
+        "timestamp" : 1793895469.767
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "D6954EC5-C1C4-4236-AE81-D7F524CFE18D.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "22-lecteur-film_0_55020C14-DFA2-4D42-B460-5772376835EF.png",
+        "timestamp" : 1793895466.887
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "2F3EBB88-1A64-4A34-AAFF-F686F5D33AA4.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "21-fiche-film_0_0B32FE8D-65D1-4A3E-84D2-6052A5CE627C.png",
+        "timestamp" : 1793895460.361
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "2A11D4C7-BA73-401C-8F44-7BA2C980A761.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "20-films_0_0A5F0CF5-4BB3-410C-959D-B97635014867.png",
+        "timestamp" : 1793895455.9
+      }
+    ],
+    "testIdentifier" : "MinuitUITests/testMoviesDetailAndPlayback()",
+    "testIdentifierURL" : "test://com.apple.xcode/Minuit/MinuitUITests/MinuitUITests/testMoviesDetailAndPlayback"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "A8AEA58E-FB73-4798-965A-4504B0AAFF5B.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "16-a-l-antenne_0_4AD6FF77-3AAD-4AF1-97C4-75E356ECF48C.png",
+        "timestamp" : 1793895486.398
+      }
+    ],
+    "testIdentifier" : "MinuitUITests/testOnAirGrid()",
+    "testIdentifierURL" : "test://com.apple.xcode/Minuit/MinuitUITests/MinuitUITests/testOnAirGrid"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "CB4AC705-8DA1-4A27-A092-329217B851A9.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "05-retour-liste_0_E68F3B84-C677-4CE6-A71B-3C42940C4234.png",
+        "timestamp" : 1793895527.999
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "BE1CE7BE-483F-4666-8366-259CA806319A.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "04-commandes_0_A033138E-12B7-4AFE-9991-3A90D6228471.png",
+        "timestamp" : 1793895517.815
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "DAF2B334-B259-4B73-B4FA-45B392198DFE.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "03-lecteur_0_54A51C14-85CE-46B0-908E-3DC1B2FF81FD.png",
+        "timestamp" : 1793895514.306
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "51BD85DE-412E-4930-BEB5-6E49A3A53BBC.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "02-liste_0_88162AE0-6EB0-4875-AA8F-FBB3DA0F50BA.png",
+        "timestamp" : 1793895506.892
+      }
+    ],
+    "testIdentifier" : "MinuitUITests/testOpenChannelAndUseControls()",
+    "testIdentifierURL" : "test://com.apple.xcode/Minuit/MinuitUITests/MinuitUITests/testOpenChannelAndUseControls"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "77A91CB0-03D6-44A9-AFB2-70022D24299A.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "15-retour-apres-plein-ecran_0_016DBB23-1975-4C2A-956A-A8E5FDD56C2A.png",
+        "timestamp" : 1793895557.976
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "2322DA93-C754-44B9-B0C9-63000F64CCB1.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "14-plein-ecran-depuis-apercu_0_2003CDEB-D271-4A2A-9B96-5E6F6628A36C.png",
+        "timestamp" : 1793895553.278
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "33C1B0FB-6D7C-4BA9-90C9-21F9997EB8AC.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "13-apercu_0_49B5D874-C882-4D61-B135-1BE52D7D9848.png",
+        "timestamp" : 1793895550.042
+      }
+    ],
+    "testIdentifier" : "MinuitUITests/testPreviewThenFullScreen()",
+    "testIdentifierURL" : "test://com.apple.xcode/Minuit/MinuitUITests/MinuitUITests/testPreviewThenFullScreen"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "4D4F641F-BA5A-43FA-98CC-D9B275909BA3.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "11-replay-transport_0_C74CE241-9E36-436F-A457-FB3CECAE8C2A.png",
+        "timestamp" : 1793895596.432
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "7DFB9DF0-B255-4758-B525-80E6818466E0.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "10-replay_0_C958119E-A30E-4EA8-B8F6-C98ED60738D0.png",
+        "timestamp" : 1793895593.715
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "EEF364BF-6910-4BC3-8538-4E9EE9B3D30F.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "09-panneau-programmes_0_7F9E66AB-0C7A-4B5C-BDDF-6931DB923A11.png",
+        "timestamp" : 1793895584.852
+      }
+    ],
+    "testIdentifier" : "MinuitUITests/testReplayFromProgrammePanel()",
+    "testIdentifierURL" : "test://com.apple.xcode/Minuit/MinuitUITests/MinuitUITests/testReplayFromProgrammePanel"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "0ECFF4CF-67D3-44B1-95B1-A10E7B9E1B29.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "08-retour-menu_0_D2795C27-0E40-4261-94D2-19DD0E9F3C74.png",
+        "timestamp" : 1793895622.623
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "F1C6FB37-4733-46DC-A86E-D71975DE70D7.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "07-liste-defilee_0_4EF1BAEA-5DFF-4F7A-B24D-BF2A53B68C0B.png",
+        "timestamp" : 1793895620.142
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "D1C99F5E-D75C-4B6C-B177-AA5D47BFED75",
+        "deviceName" : "Apple TV 4K (3rd generation)",
+        "exportedFileName" : "B6BB3BED-D0DB-4F2F-8352-664ED0EE22FC.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "06-lancement-appareil-utilise_0_6220F656-27C8-4724-8E96-ECB5AB8940C5.png",
+        "timestamp" : 1793895604.506
+      }
+    ],
+    "testIdentifier" : "MinuitUITests/testTopBarStaysVisibleWithScrolledList()",
+    "testIdentifierURL" : "test://com.apple.xcode/Minuit/MinuitUITests/MinuitUITests/testTopBarStaysVisibleWithScrolledList"
+  }
+]
