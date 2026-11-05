@@ -20,6 +20,7 @@ struct RootView: View {
             case .loading(let step):
                 LoadingView(step: step)
             case .ready, .degraded:
+                ZStack {
                 VStack(spacing: 0) {
                     TopBar(navFocus: $navFocus)
                         .focusSection()
@@ -31,6 +32,9 @@ struct RootView: View {
                         case .search: SearchScreen()
                         case .live: LiveScreen()
                         case .guide: GuideScreen()
+                        // Identités distinctes : la section choisie n'est pas partagée entre les deux onglets.
+                        case .movies: VODScreen(kind: .movies).id(VODScreen.Kind.movies)
+                        case .series: VODScreen(kind: .series).id(VODScreen.Kind.series)
                         case .settings: SettingsView()
                         }
                     }
@@ -41,6 +45,19 @@ struct RootView: View {
                 }
                 // Au lancement, le focus est sur la capsule de navigation (le menu).
                 .defaultFocus($navFocus, router.selectedTab)
+                // Fiche par-dessus : les onglets restent en place (focus et défilement retrouvés au retour).
+                .opacity(router.vodDetail == nil ? 1 : 0)
+                .disabled(router.vodDetail != nil)
+                if let detail = router.vodDetail {
+                    VODDetailScreen(detail: detail)
+                        .transition(.opacity)
+                }
+                }
+                .animation(Theme.Motion.standard, value: router.vodDetail)
+                .fullScreenCover(item: $router.vodItem) { item in
+                    VODPlayerScreen(app: app, item: item) { router.vodItem = nil }
+                        .ignoresSafeArea()
+                }
             }
         }
         // Taille imposée : aucun contenu (texte long, liste) ne peut agrandir la racine.
@@ -126,7 +143,7 @@ private struct TopBar: View {
                         Text("Minuit").font(Theme.Typeface.label(28)).foregroundStyle(Theme.Palette.textPrimary)
                     }
                 }
-                .frame(width: 520, alignment: .leading)
+                .frame(width: 460, alignment: .leading)
             }
 
             Spacer()
@@ -138,8 +155,9 @@ private struct TopBar: View {
                     Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide)).capitalized)
                         .font(Theme.Typeface.label(24)).foregroundStyle(Theme.Palette.textPrimary)
                     Text("\(accountLine) · \(buildLabel)").font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
+                        .lineLimit(1).minimumScaleFactor(0.75)
                 }
-                .frame(width: 520, alignment: .trailing)
+                .frame(width: 460, alignment: .trailing)
             }
         }
         .padding(.horizontal, Theme.Metrics.safeHorizontal)
@@ -198,7 +216,7 @@ private struct CrashReportSheet: View {
     }
 }
 
-/// Capsule de navigation flottante : Recherche · Direct · Guide · Réglages.
+/// Capsule de navigation flottante : Recherche · Direct · Guide · Films · Séries · Réglages.
 private struct NavCapsule: View {
     @Environment(AppRouter.self) private var router
     var navFocus: FocusState<AppRouter.Tab?>.Binding
@@ -208,6 +226,8 @@ private struct NavCapsule: View {
             item(.search, icon: "magnifyingglass")
             item(.live, title: "Direct")
             item(.guide, title: "Guide")
+            item(.movies, title: "Films")
+            item(.series, title: "Séries")
             item(.settings, icon: "gearshape")
         }
         .padding(6)
@@ -221,7 +241,7 @@ private struct NavCapsule: View {
                 if let title { Text(title).font(Theme.Typeface.label(24)) }
                 if let icon { Image(systemName: icon).font(.system(size: 24, weight: .semibold)) }
             }
-            .frame(minWidth: title == nil ? 44 : 110)
+            .frame(minWidth: title == nil ? 44 : 96)
         }
         .buttonStyle(NavSegmentStyle(isSelected: router.selectedTab == tab))
         .accessibilityIdentifier("nav-\(String(describing: tab))")

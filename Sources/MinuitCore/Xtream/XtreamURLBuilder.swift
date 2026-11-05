@@ -57,6 +57,18 @@ public struct XtreamURLBuilder: Sendable {
         return joined(path)
     }
 
+    // MARK: Films et séries
+
+    /// Film : `/movie/<user>/<pass>/<id>.<ext>`.
+    public func movieURL(id: Int, containerExtension: String) -> URL {
+        joined("movie/\(encodedPathComponent(credentials.username))/\(encodedPathComponent(credentials.password))/\(id).\(encodedPathComponent(containerExtension))")
+    }
+
+    /// Épisode : `/series/<user>/<pass>/<id épisode>.<ext>`.
+    public func episodeURL(id: String, containerExtension: String) -> URL {
+        joined("series/\(encodedPathComponent(credentials.username))/\(encodedPathComponent(credentials.password))/\(encodedPathComponent(id)).\(encodedPathComponent(containerExtension))")
+    }
+
     // MARK: Rattrapage
 
     public enum TimeshiftStyle: String, Sendable, Codable, CaseIterable {

@@ -452,8 +452,13 @@ private struct OnAirGrid: View {
 
     var body: some View {
         let rails = self.rails
+        let continuing = app.vod.progress.continueWatching(limit: 20)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 30) {
+                if !continuing.isEmpty {
+                    ContinueWatchingRail(entries: continuing)
+                        .focusSection()
+                }
                 ForEach(rails) { rail in
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .firstTextBaseline, spacing: 14) {
@@ -530,6 +535,48 @@ private struct OnAirGrid: View {
         default: subtitle = "ajoutez des favoris pour personnaliser"
         }
         return (Array(result.prefix(30)), favorites.isEmpty ? .all : .favorites, subtitle)
+    }
+}
+
+/// « Continuer à regarder » : films entamés et séries en cours (ouvre la fiche, prête à reprendre).
+private struct ContinueWatchingRail: View {
+    @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router
+    let entries: [WatchProgress.Entry]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                Text("Continuer à regarder").font(Theme.Typeface.label(26)).foregroundStyle(Theme.Palette.textSecondary)
+                Text("films et séries").font(Theme.Typeface.caption()).foregroundStyle(Theme.Palette.textTertiary)
+            }
+            .padding(.horizontal, 12)
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 34) {
+                    ForEach(entries) { entry in
+                        Button { open(entry) } label: { ContinueCard(entry: entry) }
+                            .buttonStyle(GlassRowButtonStyle(cornerRadius: 22, horizontalPadding: 0, verticalPadding: 0))
+                            .accessibilityIdentifier("continue-\(entry.key)")
+                            .contextMenu {
+                                Button("Retirer de la liste") { app.vod.removeProgress(entry.key) }
+                            }
+                    }
+                }
+                .padding(16)
+            }
+            .scrollClipDisabled()
+        }
+    }
+
+    private func open(_ entry: WatchProgress.Entry) {
+        switch entry.kind {
+        case .movie:
+            router.vodDetail = .movie(app.vod.movies.item(entry.itemID)
+                ?? Movie(id: entry.itemID, name: entry.title, posterURL: entry.imageURL, containerExtension: entry.containerExtension))
+        case .episode:
+            router.vodDetail = .series(app.vod.series.item(entry.itemID)
+                ?? Series(id: entry.itemID, name: entry.title, posterURL: entry.imageURL))
+        }
     }
 }
 
@@ -648,13 +695,19 @@ struct SearchScreen: View {
     @State private var query = ""
 
     var body: some View {
+        let hideAdult = app.preferences.hideAdultContent
+        let movies = query.isEmpty ? [] : app.vod.movies.search(query, limit: 30, hideAdult: hideAdult)
+        let series = query.isEmpty ? [] : app.vod.series.search(query, limit: 30, hideAdult: hideAdult)
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 10) {
+                LazyVStack(alignment: .leading, spacing: 10) {
                     if query.isEmpty {
-                        Text("Nom ou numéro de chaîne").font(Theme.Typeface.body(26))
+                        Text("Chaîne, numéro, film ou série").font(Theme.Typeface.body(26))
                             .foregroundStyle(Theme.Palette.textTertiary).padding(.top, 60)
+                            .frame(maxWidth: .infinity)
                     }
+                    if !movies.isEmpty { posterRow("Films", movies.map { (id: "m\($0.id)", title: VODText.title($0.name), url: $0.posterURL, open: AppRouter.VODDetail.movie($0)) }) }
+                    if !series.isEmpty { posterRow("Séries", series.map { (id: "s\($0.id)", title: VODText.title($0.name), url: $0.posterURL, open: AppRouter.VODDetail.series($0)) }) }
                     ForEach(app.library.search(query, preferences: app.preferences, limit: 80)) { channel in
                         Button { router.watch(channel.id, context: .all, app: app) } label: {
                             ChannelRowContent(channel: channel)
@@ -667,7 +720,32 @@ struct SearchScreen: View {
                 .padding(.vertical, 20)
             }
             .onExitCommand { backToTopBar() }
-            .searchable(text: $query, prompt: "Rechercher une chaîne")
+            .searchable(text: $query, prompt: "Rechercher")
         }
+        // Les catalogues de films et séries sont chargés (ou relus du cache) pour la recherche.
+        .onAppear {
+            app.vod.loadMovies()
+            app.vod.loadSeries()
+        }
+    }
+
+    private func posterRow(_ title: String, _ items: [(id: String, title: String, url: URL?, open: AppRouter.VODDetail)]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).sectionHeader().padding(.leading, 14)
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 30) {
+                    ForEach(items, id: \.id) { item in
+                        Button { router.vodDetail = item.open } label: {
+                            PosterCard(title: item.title, posterURL: item.url)
+                        }
+                        .buttonStyle(GlassRowButtonStyle(cornerRadius: 18, horizontalPadding: 0, verticalPadding: 0))
+                    }
+                }
+                .padding(14)
+            }
+            .scrollClipDisabled()
+        }
+        .padding(.bottom, 16)
+        .focusSection()
     }
 }

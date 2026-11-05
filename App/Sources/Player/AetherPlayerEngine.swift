@@ -25,6 +25,8 @@ final class AetherPlayerEngine: PlaybackEngine {
     private var cancellables: Set<AnyCancellable> = []
     private var mode: EngineLoadRequest.Mode = .live
     private var firstFrameReported = false
+    /// Sous-titres reçus du moteur (fenêtre glissante), filtrés à l'affichage.
+    private var cues: [SubtitleCue] = []
 
     init() throws {
         engine = try AetherEngine()
@@ -76,6 +78,11 @@ final class AetherPlayerEngine: PlaybackEngine {
         engine.liveSourceReset
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.onEvent?(.sourceReset) }
+            .store(in: &cancellables)
+
+        engine.$subtitleCues
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] cues in self?.cues = cues }
             .store(in: &cancellables)
     }
 
@@ -144,6 +151,14 @@ final class AetherPlayerEngine: PlaybackEngine {
                 declaredDurationSeconds: durationSeconds
             )
             start = request.format == .hls && startOffset > 0 ? startOffset : nil
+        case .vod(let startPosition):
+            // Fichier complet (MKV, MP4…) : accès par plages, audio français choisi d'emblée.
+            var vod = LoadOptions()
+            vod.httpHeaders = headers
+            vod.matchContentEnabled = request.matchContent
+            vod.preferredAudioLanguages = ["fr"]
+            options = vod
+            start = startPosition > 0 ? startPosition : nil
         }
         do {
             try await engine.load(url: request.url, startPosition: start, options: options)
@@ -172,6 +187,7 @@ final class AetherPlayerEngine: PlaybackEngine {
     func stop() {
         engine.stop()
         firstFrameReported = false
+        cues = []
     }
 
     func healthSample(at time: TimeInterval, wantsToPlay: Bool) -> HealthSample {
@@ -215,11 +231,50 @@ final class AetherPlayerEngine: PlaybackEngine {
             let language = track.language.map { Locale.current.localizedString(forLanguageCode: $0) ?? $0 } ?? ""
             let channels = track.channels >= 6 ? " · \(track.channels == 8 ? "7.1" : "5.1")" : ""
             let title = [language, track.codec.uppercased()].filter { !$0.isEmpty }.joined(separator: " · ") + channels
-            return EngineTrack(id: track.id, title: title.isEmpty ? track.name : title, isSelected: false)
+            return EngineTrack(id: track.id, title: title.isEmpty ? track.name : title,
+                               isSelected: track.id == engine.activeAudioTrackIndex,
+                               language: track.language, isDefault: track.isDefault, isForced: track.isForced)
         }
     }
 
     func selectAudioTrack(id: Int) { engine.selectAudioTrack(index: id) }
+
+    var subtitleTracks: [EngineTrack] {
+        engine.subtitleTracks.map { track in
+            let language = track.language.map { Locale.current.localizedString(forLanguageCode: $0) ?? $0 } ?? ""
+            var parts = [language]
+            if !track.name.isEmpty, !track.name.localizedCaseInsensitiveContains(language) || language.isEmpty { parts.append(track.name) }
+            if track.isForced { parts.append("forcés") }
+            let title = parts.filter { !$0.isEmpty }.joined(separator: " · ")
+            return EngineTrack(id: track.id, title: title.isEmpty ? "Piste \(track.id)" : title,
+                               isSelected: engine.isSubtitleActive && track.id == engine.activeSubtitleTrackIndex,
+                               language: track.language, isDefault: track.isDefault, isForced: track.isForced)
+        }
+    }
+
+    func selectSubtitleTrack(id: Int?) {
+        if let id { engine.selectSubtitleTrack(index: id) } else { engine.clearSubtitle() }
+    }
+
+    /// Repères en temps source (PTS), comparés à l'horloge source de l'image affichée.
+    func currentCues() -> [DisplayCue] {
+        let now = engine.clock.sourceTime
+        guard now.isFinite else { return [] }
+        return cues.filter { $0.startTime <= now && now < $0.endTime }.compactMap { cue in
+            let top = (7...9).contains(cue.placement?.alignment ?? 2)
+            switch cue.body {
+            case .text(let text):
+                return DisplayCue(id: cue.id, body: .text(text, italic: false), top: top)
+            case .richText(let runs):
+                let italic = !runs.isEmpty && runs.allSatisfy(\.isItalic)
+                return DisplayCue(id: cue.id, body: .text(runs.map(\.text).joined(), italic: italic), top: top)
+            case .image(let image):
+                return DisplayCue(id: cue.id, body: .image(image.cgImage, rect: image.position, canvas: image.canvasSize), top: false)
+            @unknown default:
+                return nil
+            }
+        }
+    }
 
     var technicalSummary: String {
         let format: String

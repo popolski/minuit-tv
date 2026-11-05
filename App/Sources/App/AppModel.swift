@@ -26,6 +26,10 @@ final class AppModel {
 
     let epg = EPGService()
     let playback = PlaybackController()
+    /// Films et séries (catalogues, fiches, progression).
+    let vod = VODService(storage: AppModel.storage)
+    /// Lecteur de films et séries ouvert (mise en veille, retour au premier plan).
+    @ObservationIgnored weak var activeVOD: VODPlayerController?
     /// Serveur local de l'écran de connexion (configuration depuis le téléphone).
     let phoneSetup = PhoneSetupServer()
     @ObservationIgnored let archive = ArchiveService()
@@ -138,6 +142,7 @@ final class AppModel {
         sessionStore.clear()
         if let credentials { cache.remove(name: catalogCacheName(credentials)) }
         epg.reset()
+        vod.reset()
         credentials = nil
         client = nil
         session = nil
@@ -236,6 +241,9 @@ final class AppModel {
             epg.configure(client: client, session: session, channels: channels, settings: settings)
             archive.configure(client: client, session: session, settings: settings.catchup)
         }
+        if let client, let credentials {
+            vod.configure(client: client, cacheKey: catalogCacheName(credentials).replacingOccurrences(of: "catalog-", with: ""))
+        }
     }
 
     private func catalogCacheName(_ credentials: XtreamCredentials) -> String {
@@ -324,7 +332,10 @@ final class AppModel {
             || copy.acceptInvalidStreamCertificates != settings.acceptInvalidStreamCertificates
         settings = copy
         try? settingsStore.save(copy)
-        if transportChanged, let credentials { configureClient(credentials) }
+        if transportChanged, let credentials {
+            configureClient(credentials)
+            if let client { vod.configure(client: client, cacheKey: catalogCacheName(credentials).replacingOccurrences(of: "catalog-", with: "")) }
+        }
         epg.applySettings(copy)
     }
 

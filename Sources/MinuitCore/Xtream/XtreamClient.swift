@@ -91,7 +91,12 @@ public struct XtreamClient: Sendable {
     // MARK: Catalogue
 
     public func liveCategories() async throws(XtreamError) -> [ChannelCategory] {
-        let data = try await get(urls.apiURL(action: "get_live_categories"))
+        try await categories(action: "get_live_categories")
+    }
+
+    /// Catégories d'une action (`get_live_categories`, `get_vod_categories`, `get_series_categories`).
+    func categories(action: String) async throws(XtreamError) -> [ChannelCategory] {
+        let data = try await get(urls.apiURL(action: action))
         guard let list = try? JSONDecoder().decode(LossyArray<LiveCategoryDTO>.self, from: data) else {
             throw .unexpectedResponse(context: "catégories")
         }
@@ -112,49 +117,62 @@ public struct XtreamClient: Sendable {
     /// catégorie par catégorie, quatre requêtes à la fois. Une catégorie en échec est ignorée ;
     /// si tout le premier lot échoue, le serveur refuse aussi ce mode et l'on abandonne.
     public func liveStreams(byCategory categories: [ChannelCategory]) async throws(XtreamError) -> [Channel] {
-        var merged: [Channel] = []
-        var position: [ChannelID: Int] = [:]
+        try await Self.mergeByCategory(categories, context: "chaînes", key: { (channel: Channel) in channel.id.rawValue }) { id in
+            await self.capture { () throws(XtreamError) in try await self.liveStreams(category: id) }
+        }.get()
+    }
+
+    func capture<T>(_ body: () async throws(XtreamError) -> T) async -> Result<T, XtreamError> {
+        do { return .success(try await body()) } catch { return .failure(error) }
+    }
+
+    /// Chargement par catégorie, quatre requêtes à la fois (direct, films, séries). Une catégorie
+    /// en échec est ignorée ; si tout le premier lot échoue, le serveur refuse aussi ce mode.
+    /// Les éléments présents dans plusieurs catégories sont fusionnés.
+    /// (`Result` plutôt que typed throws : plantage du compilateur 6.1 en contexte générique.)
+    static func mergeByCategory<Item: Sendable & Categorized>(
+        _ categories: [ChannelCategory], context: String, key: (Item) -> Int,
+        fetch: @escaping @Sendable (CategoryID) async -> Result<[Item], XtreamError>
+    ) async -> Result<[Item], XtreamError> {
+        var merged: [Item] = []
+        var position: [Int: Int] = [:]
         var firstError: XtreamError?
         var succeeded = 0
         for start in stride(from: 0, to: categories.count, by: 4) {
             let batch = Array(categories[start..<min(start + 4, categories.count)])
-            let results = await withTaskGroup(of: (Int, Result<[Channel], XtreamError>).self) { group in
+            let results = await withTaskGroup(of: (Int, Result<[Item], XtreamError>).self) { group in
                 for (index, category) in batch.enumerated() {
-                    group.addTask { (index, await self.capture { () throws(XtreamError) in try await self.liveStreams(category: category.id) }) }
+                    group.addTask { (index, await fetch(category.id)) }
                 }
-                var collected: [(Int, Result<[Channel], XtreamError>)] = []
+                var collected: [(Int, Result<[Item], XtreamError>)] = []
                 for await item in group { collected.append(item) }
                 return collected.sorted { $0.0 < $1.0 }.map(\.1)
             }
             for (category, result) in zip(batch, results) {
                 switch result {
-                case .success(let channels):
+                case .success(let items):
                     succeeded += 1
-                    for var channel in channels {
+                    for var item in items {
                         // La requête par catégorie prouve l'appartenance, même si la fiche l'omet.
-                        if !channel.categoryIDs.contains(category.id) { channel.categoryIDs.append(category.id) }
-                        if let existing = position[channel.id] {
-                            for id in channel.categoryIDs where !merged[existing].categoryIDs.contains(id) {
+                        if !item.categoryIDs.contains(category.id) { item.categoryIDs.append(category.id) }
+                        if let existing = position[key(item)] {
+                            for id in item.categoryIDs where !merged[existing].categoryIDs.contains(id) {
                                 merged[existing].categoryIDs.append(id)
                             }
                         } else {
-                            position[channel.id] = merged.count
-                            merged.append(channel)
+                            position[key(item)] = merged.count
+                            merged.append(item)
                         }
                     }
                 case .failure(let error):
                     firstError = firstError ?? error
                 }
             }
-            if succeeded == 0 { throw firstError ?? .unexpectedResponse(context: "chaînes") }
-            if Task.isCancelled { throw .transport(.cancelled) }
+            if succeeded == 0 { return .failure(firstError ?? .unexpectedResponse(context: context)) }
+            if Task.isCancelled { return .failure(.transport(.cancelled)) }
         }
-        if succeeded == 0 { throw firstError ?? .unexpectedResponse(context: "chaînes") }
-        return merged
-    }
-
-    private func capture<T>(_ body: () async throws(XtreamError) -> T) async -> Result<T, XtreamError> {
-        do { return .success(try await body()) } catch { return .failure(error) }
+        if succeeded == 0 { return .failure(firstError ?? .unexpectedResponse(context: context)) }
+        return .success(merged)
     }
 
     static func decodeChannels(_ data: Data) throws(XtreamError) -> [Channel] {

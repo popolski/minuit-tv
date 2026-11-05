@@ -212,7 +212,8 @@ final class MinuitUITests: XCTestCase {
     func testDiagnosticsLayout() {
         launch()
         waitForCatalog()
-        press(.right, times: 2)
+        var hops = 0
+        while focusedID() != "nav-settings" && hops < 6 { press(.right); hops += 1 }
         log("capsule : \(focusedID())")
         press(.select)
         Thread.sleep(forTimeInterval: 1)
@@ -224,6 +225,51 @@ final class MinuitUITests: XCTestCase {
         assertRunning("ouverture des diagnostics")
         screenshot("12-diagnostics")
         assertOnScreen(app.buttons["nav-settings"], "capsule de navigation sur l'écran Diagnostics")
+    }
+
+    /// Films : grille, fiche, lecture de la vidéo locale, retour à la fiche puis aux onglets.
+    func testMoviesDetailAndPlayback() {
+        launch()
+        waitForCatalog()
+        var hops = 0
+        while focusedID() != "nav-movies" && hops < 6 { press(.right); hops += 1 }
+        press(.select)
+        Thread.sleep(forTimeInterval: 2)
+        let poster = app.descendants(matching: .any)["vod-m9001"]
+        let deadline = Date().addingTimeInterval(15)
+        while !poster.exists && Date() < deadline { Thread.sleep(forTimeInterval: 0.5) }
+        XCTAssertTrue(poster.exists, "grille des films de démonstration absente")
+        screenshot("20-films")
+        press(.down)
+        hops = 0
+        while !focusedID().hasPrefix("vod-m") && hops < 4 { press(.right); hops += 1 }
+        log("focus dans la grille : \(focusedID())")
+        press(.select)
+        Thread.sleep(forTimeInterval: 2)
+        assertRunning("ouverture de la fiche")
+        screenshot("21-fiche-film")
+        XCTAssertTrue(app.descendants(matching: .any)["vod-play"].exists, "bouton de lecture de la fiche absent")
+        hops = 0
+        while focusedID() != "vod-play" && hops < 3 { press(.up); hops += 1 }
+        press(.select)
+        Thread.sleep(forTimeInterval: 5)
+        assertRunning("lecture du film")
+        screenshot("22-lecteur-film")
+        press(.right)
+        press(.down)
+        Thread.sleep(forTimeInterval: 1)
+        screenshot("23-pistes-film")
+        // Retour : panneau, informations, puis lecteur (ou directement le lecteur en cas d'échec).
+        let player = app.descendants(matching: .any)["vod-player"]
+        hops = 0
+        while player.exists && hops < 4 { press(.menu); Thread.sleep(forTimeInterval: 0.6); hops += 1 }
+        Thread.sleep(forTimeInterval: 1.5)
+        assertRunning("fermeture du lecteur")
+        XCTAssertFalse(player.exists, "le lecteur doit se fermer avec Retour")
+        press(.menu)
+        Thread.sleep(forTimeInterval: 1)
+        assertRunning("fermeture de la fiche")
+        assertOnScreen(app.buttons["nav-movies"], "capsule de navigation après la fiche")
     }
 
     func testBackNavigationReachesMenu() {

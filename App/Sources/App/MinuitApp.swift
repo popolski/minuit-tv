@@ -30,8 +30,10 @@ struct MinuitApp: App {
             case .background:
                 // Veille ou changement d'application : on libère la connexion et le décodeur.
                 app.playback.suspend()
+                app.activeVOD?.suspend()
             case .active:
                 if router.isPlayerPresented { app.playback.resume() }
+                app.activeVOD?.resume()
                 if case .ready = app.phase { app.epg.refreshFullIfNeeded() }
             default:
                 break
@@ -60,7 +62,24 @@ final class AppRouter {
         case list(ChannelListContext)
     }
 
-    enum Tab: Hashable { case search, live, guide, settings }
+    enum Tab: Hashable { case search, live, guide, movies, series, settings }
+
+    /// Fiche de film ou de série affichée par-dessus les onglets.
+    enum VODDetail: Equatable {
+        case movie(Movie)
+        case series(Series)
+    }
+
+    var vodDetail: VODDetail?
+    /// Film ou épisode en lecture (lecteur plein écran dédié).
+    var vodItem: VODPlayItem?
+
+    /// Lance un film ou un épisode. Le direct (aperçu compris) est arrêté d'abord :
+    /// beaucoup de comptes n'autorisent qu'une connexion à la fois.
+    func play(_ item: VODPlayItem, app: AppModel) {
+        app.playback.close()
+        vodItem = item
+    }
 
     func watch(_ channel: ChannelID, context: ChannelListContext, app: AppModel) {
         var list = app.channels(in: context).map(\.id)

@@ -68,9 +68,34 @@ final class DemoXtreamHTTPClient: HTTPClient {
         case "get_live_categories": return json(Self.categoriesJSON())
         case "get_live_streams": return json(Self.streamsJSON())
         case "get_short_epg", "get_simple_data_table": return json(Self.epgJSON(streamID: streamID ?? 0))
+        case "get_vod_categories", "get_series_categories":
+            return json(#"[{"category_id":"60","category_name":"Démonstration","parent_id":0}]"#)
+        case "get_vod_streams": return json(Self.moviesJSON)
+        case "get_vod_info":
+            return json(#"{"info":{"plot":"Film de démonstration (vidéo locale).","genre":"Drame","duration_secs":60},"movie_data":{"container_extension":"mp4"}}"#)
+        case "get_series": return json(Self.seriesJSON)
+        case "get_series_info": return json(Self.seriesInfoJSON)
         default: return HTTPResponse(statusCode: 404, body: Data())
         }
     }
+
+    // Films et séries inventés (affiches absentes : repli dégradé).
+    static let moviesJSON = #"""
+    [{"stream_id":9001,"name":"Le Phare (2019)","stream_type":"movie","category_id":"60","container_extension":"mp4","added":"1700000300","rating":"7.2"},
+     {"stream_id":9002,"name":"Marées d'hiver","stream_type":"movie","category_id":"60","container_extension":"mp4","added":"1700000200"},
+     {"stream_id":9003,"name":"La Nuit des Étoiles","stream_type":"movie","category_id":"60","container_extension":"mkv","added":"1700000100"}]
+    """#
+
+    static let seriesJSON = #"""
+    [{"series_id":77,"name":"L'Île (2021)","category_id":"60","plot":"Série de démonstration.","last_modified":"1700000400"}]
+    """#
+
+    static let seriesInfoJSON = #"""
+    {"seasons":[{"season_number":1,"name":"Saison 1"},{"season_number":2,"name":"Saison 2"}],"info":{"plot":"Série de démonstration."},
+     "episodes":{"1":[{"id":"7701","episode_num":1,"title":"L'Île - S01E01 - Arrivée","container_extension":"mp4","info":{"duration_secs":60}},
+                      {"id":"7702","episode_num":2,"title":"L'Île - S01E02 - Tempête","container_extension":"mp4","info":{"duration_secs":60}}],
+                 "2":[{"id":"7703","episode_num":1,"title":"L'Île - S02E01 - Retour","container_extension":"mp4","info":[]}]}}
+    """#
 
     private func json(_ text: String) -> HTTPResponse {
         HTTPResponse(statusCode: 200, headers: ["Content-Type": "application/json"], body: Data(text.utf8))

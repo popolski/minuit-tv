@@ -37,6 +37,7 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
 
     var canSeekInPlace: Bool {
         if case .archive = mode { return true }
+        if mode.isVOD { return true }
         return !(item?.seekableTimeRanges.isEmpty ?? true)
     }
 
@@ -54,7 +55,8 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
     func load(_ request: EngineLoadRequest) async throws {
         stop()
         lastErrorDetail = nil
-        guard request.format == .hls else { throw EngineError.unsupported }
+        // Direct et archives : HLS seulement. Films et épisodes : fichiers MP4/MOV progressifs aussi.
+        guard request.format == .hls || request.mode.isVOD else { throw EngineError.unsupported }
         mode = request.mode
         matchContent = request.matchContent
         firstFrameReported = false
@@ -79,6 +81,9 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
 
         if case .archive(_, let start) = request.mode, start > 0 {
             await player.seek(to: CMTime(seconds: start, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .positiveInfinity)
+        }
+        if case .vod(let start) = request.mode, start > 0 {
+            await player.seek(to: CMTime(seconds: start, preferredTimescale: 600))
         }
         player.play()
     }
@@ -121,7 +126,7 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
         if item.status == .failed { report(error: item.error as NSError?) }
         if item.status == .readyToPlay {
             applyDisplayCriteria(for: item)
-            loadAudioGroup(for: item)
+            loadSelectionGroups(for: item)
         }
     }
 
@@ -139,15 +144,18 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
         }
     }
 
-    /// Groupe des pistes audio, chargé de façon asynchrone une fois l'item prêt.
+    /// Groupes des pistes audio et de sous-titres, chargés une fois l'item prêt.
     private var audibleGroup: AVMediaSelectionGroup?
+    private var legibleGroup: AVMediaSelectionGroup?
 
-    private func loadAudioGroup(for item: AVPlayerItem) {
+    private func loadSelectionGroups(for item: AVPlayerItem) {
         let asset = item.asset
         Task { [weak self] in
-            let group = try? await asset.loadMediaSelectionGroup(for: .audible)
+            let audible = try? await asset.loadMediaSelectionGroup(for: .audible)
+            let legible = try? await asset.loadMediaSelectionGroup(for: .legible)
             guard let self, item === self.item else { return }
-            self.audibleGroup = group
+            self.audibleGroup = audible
+            self.legibleGroup = legible
         }
     }
 
@@ -226,6 +234,7 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
         player = nil
         item = nil
         audibleGroup = nil
+        legibleGroup = nil
     }
 
     func healthSample(at time: TimeInterval, wantsToPlay: Bool) -> HealthSample {
@@ -252,7 +261,8 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
         guard let item, let group = audibleGroup else { return [] }
         let selected = item.currentMediaSelection.selectedMediaOption(in: group)
         return group.options.enumerated().map { index, option in
-            EngineTrack(id: index, title: option.displayName, isSelected: option == selected)
+            EngineTrack(id: index, title: option.displayName, isSelected: option == selected,
+                        language: option.extendedLanguageTag ?? option.locale?.identifier)
         }
     }
 
@@ -260,6 +270,24 @@ final class AVPlayerEngine: NSObject, PlaybackEngine {
         guard let item, let group = audibleGroup, group.options.indices.contains(id) else { return }
         item.select(group.options[id], in: group)
     }
+
+    var subtitleTracks: [EngineTrack] {
+        guard let item, let group = legibleGroup else { return [] }
+        let selected = item.currentMediaSelection.selectedMediaOption(in: group)
+        return group.options.enumerated().map { index, option in
+            EngineTrack(id: index, title: option.displayName, isSelected: option == selected,
+                        language: option.extendedLanguageTag ?? option.locale?.identifier,
+                        isForced: option.hasMediaCharacteristic(.containsOnlyForcedSubtitles))
+        }
+    }
+
+    func selectSubtitleTrack(id: Int?) {
+        guard let item, let group = legibleGroup else { return }
+        if let id, group.options.indices.contains(id) { item.select(group.options[id], in: group) } else { item.select(nil, in: group) }
+    }
+
+    /// AVPlayer dessine lui-même ses sous-titres.
+    func currentCues() -> [DisplayCue] { [] }
 
     var technicalSummary: String {
         guard let item else { return "AVPlayer : inactif" }

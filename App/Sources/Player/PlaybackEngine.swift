@@ -7,6 +7,10 @@ struct EngineLoadRequest {
         case live
         /// Archive : durée déclarée et position de départ dans le flux.
         case archive(durationSeconds: Double, startOffset: Double)
+        /// Film ou épisode : fichier complet, repositionnable, départ éventuel (reprise).
+        case vod(startPosition: Double)
+
+        var isVOD: Bool { if case .vod = self { return true } else { return false } }
     }
 
     var url: URL
@@ -28,10 +32,20 @@ enum EngineEvent: Equatable {
     case ended
 }
 
-struct EngineTrack: Identifiable, Equatable {
-    var id: Int
-    var title: String
-    var isSelected: Bool
+typealias EngineTrack = MediaTrack
+
+/// Sous-titre prêt à dessiner (moteurs qui ne les affichent pas eux-mêmes).
+struct DisplayCue: Identifiable {
+    enum Body {
+        case text(String, italic: Bool)
+        /// Image (PGS, DVB…) et sa position dans le canevas source.
+        case image(CGImage, rect: CGRect, canvas: CGSize)
+    }
+
+    let id: Int
+    let body: Body
+    /// Ancré en haut de l'image (alignements ASS 7/8/9).
+    let top: Bool
 }
 
 /// Interface commune aux moteurs vidéo. Toujours utilisée sur le fil principal.
@@ -66,6 +80,11 @@ protocol PlaybackEngine: AnyObject {
 
     var audioTracks: [EngineTrack] { get }
     func selectAudioTrack(id: Int)
+    var subtitleTracks: [EngineTrack] { get }
+    /// nil : sous-titres désactivés.
+    func selectSubtitleTrack(id: Int?)
+    /// Sous-titres à afficher maintenant (vide si le moteur les dessine lui-même).
+    func currentCues() -> [DisplayCue]
     /// Résumé technique pour l'écran de diagnostic (codec, résolution, HDR…).
     var technicalSummary: String { get }
 }
