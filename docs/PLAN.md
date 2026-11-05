@@ -13,6 +13,7 @@
 | 9 | Tests automatisés et vérifications statiques | ✅ (cœur) |
 | 10 | Build macOS automatique (méthode Lanterne) | ✅ à chaque push (Release `build-N`) |
 | 11 | Installation atvloadly, qualification sur Apple TV avec vos retours | 🔄 lecture, zapping, guide OK ; replay à diagnostiquer |
+| 12 | Films et séries (catalogues, fiches, lecteur dédié, reprise) | ✅ écrit, compilé, testé (cœur, simulateur) ; ⏳ Apple TV |
 
 ## Parcours principaux
 
@@ -36,6 +37,16 @@
 | Appui long central | Favori ajouté/retiré | — |
 | Lecture/Pause | Pause du direct (tampon 10 min, retard affiché dans le bandeau) | Lecture/Pause |
 | Retour | Après une pause : revient au direct ; sinon ferme le panneau, puis le lecteur | Ferme le panneau, puis le lecteur |
+
+## Siri Remote (films et séries)
+
+| Commande | Effet |
+|---|---|
+| Clic central, Lecture/Pause | Pause / reprise |
+| ◀ / ▶ | −10 s / +10 s ; maintenus : retour / avance rapides (×1 à ×16) |
+| ▲ | Informations (titre, position, heure de fin) |
+| ▼ | Audio et sous-titres |
+| Retour | Ferme le panneau, masque les informations, puis quitte (position enregistrée) |
 
 ## Suite envisagée après qualification
 

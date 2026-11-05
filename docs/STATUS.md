@@ -46,6 +46,10 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Noms de chaînes simplifiés (sans préfixe ni qualité), réglable | ✅ | ✅ | ✅ | ⏳ |
 | Aperçu vidéo muet dans la fiche du guide, réglable | ✅ | ✅ | — | ⏳ |
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
+| Films et séries : client VOD Xtream, décodage tolérant, URL de lecture, repli par catégorie | ✅ | ✅ | ✅ | ⏳ |
+| Films et séries : onglets (grille, catégories, ajouts récents), fiches, recherche | ✅ | ✅ | ✅ simulateur (grille, fiche) | ⏳ |
+| Films et séries : reprise, vus, « Continuer à regarder », « À suivre » | ✅ | ✅ | ✅ (progression) | ⏳ |
+| Lecteur VOD : AetherEngine puis AVPlayer, ±10 s, avance rapide, pistes, épisode suivant | ✅ | ✅ | ✅ simulateur (ouverture, pistes, Retour) | ⏳ |
 
 État au 2 novembre 2026 :
 - **102 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.

@@ -163,7 +163,8 @@ struct VODScreen: View {
         let key = WatchProgress.key(movie: movie.id)
         let entry = vod.progress.entry(key)
         return Card(id: key, title: VODText.title(movie.name), caption: movie.year.map(String.init), posterURL: movie.posterURL,
-                    progress: entry.map { $0.finished ? nil : $0.fraction }, finished: entry?.finished ?? false, open: .movie(movie))
+                    progress: entry.flatMap { (e: WatchProgress.Entry) -> Double? in e.finished ? nil : e.fraction },
+                    finished: entry?.finished ?? false, open: .movie(movie))
     }
 
     private func seriesCard(_ series: Series) -> Card {
