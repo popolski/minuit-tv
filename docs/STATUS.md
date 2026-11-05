@@ -52,7 +52,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Lecteur VOD : AetherEngine puis AVPlayer, ±10 s, avance rapide, pistes, épisode suivant | ✅ | ✅ | ✅ simulateur (ouverture, pistes, Retour) | ⏳ |
 
 État au 2 novembre 2026 :
-- **102 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK.
+- **116 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK (build 33, films et séries).
 - **Application tvOS compilée** par la CI (image `xcode-27`, Xcode 27.1), sans avertissement
   dans le code de Minuit ; IPA vérifiée (arm64, tvOS, frameworks FFmpeg) — Release `build-3`.
 - **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur
@@ -87,5 +87,8 @@ locale : il ne prouve rien sur les flux réels du fournisseur.
   confirmé par sondage seulement.
 - Comportement de la télécommande sans élément focalisable (appuis reçus par le
   contrôleur du lecteur) : conforme aux pratiques courantes, à vérifier sur l'appareil.
+- Films et séries : en simulateur, après fermeture d'une fiche, aucun élément n'a le focus
+  (un appui sur une flèche le rend) ; à vérifier sur l'Apple TV. Lecture des MKV/HEVC et
+  sous-titres intégrés : non vérifiés sur des fichiers réels du fournisseur.
 - Débit, temps de zapping, 4K/HDR, Atmos : non mesurés tant que l'application n'a pas
   tourné sur votre Apple TV avec votre fournisseur.
