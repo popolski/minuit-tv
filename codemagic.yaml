@@ -1,0 +1,97 @@
+# Builds de Minuit sur Codemagic (Mac mini M2, offre gratuite : 500 minutes macOS par mois),
+# comme Aurora. Même chaîne que .github/workflows/build.yml : tests du cœur, vérifications
+# statiques, IPA tvOS non signée et vérifiée, Release GitHub « build-NNN » (pour atvloadly).
+# Les tests d'interface (simulateur) ne sont pas lancés ici, pour ménager les minutes.
+#
+# Secret requis, saisi dans Codemagic (jamais dans ce dépôt) : groupe de variables « github »
+# contenant GITHUB_TOKEN, jeton GitHub ayant accès au dépôt popolski/minuit-tv avec la
+# permission « Contents : Read and write ».
+#
+# Numéro de build : BUILD_NUMBER de Codemagic + 100, pour rester au-dessus des builds faits
+# par GitHub Actions (jusqu'à 33) : atvloadly et tvOS voient toujours une version plus récente.
+
+workflows:
+  minuit:
+    name: Minuit (Apple TV)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      xcode: 27.1
+      groups:
+        - github
+    cache:
+      cache_paths:
+        - $CM_BUILD_DIR/App/.spm
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Version
+        script: |
+          MINUIT_BUILD=$((BUILD_NUMBER + 100))
+          MARKETING=$(grep -E '^\s+MARKETING_VERSION:' App/project.yml | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "MINUIT_BUILD=$MINUIT_BUILD" >> "$CM_ENV"
+          echo "MINUIT_VERSION=$MARKETING" >> "$CM_ENV"
+          echo "Minuit $MARKETING (build $MINUIT_BUILD) — commit ${CM_COMMIT:0:8}"
+          xcodebuild -version
+
+      - name: Tests MinuitCore (swift test)
+        script: |
+          set -o pipefail
+          swift test 2>&1 | tee core-tests.log | tail -n 40
+
+      - name: Vérifications statiques
+        script: sh scripts/static-checks.sh
+
+      - name: XcodeGen et dépendances
+        script: |
+          brew install xcodegen
+          xcodegen generate --spec App/project.yml
+          xcodebuild -resolvePackageDependencies -project App/Minuit.xcodeproj -scheme Minuit \
+            -clonedSourcePackagesDirPath App/.spm -skipPackagePluginValidation -skipMacroValidation | tail -n 5
+
+      - name: Application tvOS (IPA)
+        script: |
+          set -o pipefail
+          xcodebuild build \
+            -project App/Minuit.xcodeproj -scheme Minuit -configuration Release \
+            -destination 'generic/platform=tvOS' \
+            -derivedDataPath build/dd -clonedSourcePackagesDirPath App/.spm \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=$MINUIT_BUILD > build.log 2>&1 \
+            || { grep -E "error:" build.log | sort -u | head -n 60; exit 1; }
+          grep -E "warning:.*App/Sources" build.log | sort -u | head -n 40 || true
+          IPA="dist/Minuit-$MINUIT_VERSION-$MINUIT_BUILD-unsigned.ipa"
+          bash scripts/package-ipa.sh build/dd/Build/Products/Release-appletvos/Minuit.app "$IPA"
+          bash scripts/verify-ipa.sh "$IPA" app.minuit.tv
+          (cd dist && shasum -a 256 *.ipa | tee SHA256SUMS.txt)
+
+      - name: Release GitHub (suivie par atvloadly)
+        script: |
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "GITHUB_TOKEN absent (groupe « github » de Codemagic) : pas de Release publiée."
+            exit 1
+          fi
+          export GH_TOKEN="$GITHUB_TOKEN"
+          TAG="build-$MINUIT_BUILD"
+          cat > notes.md <<NOTES
+          IPA **non signée** pour atvloadly (signature par votre identifiant Apple à l'installation).
+          Construite par Codemagic. Commit : $CM_COMMIT
+          Statut : compilée et vérifiée par la CI ; qualification sur Apple TV : voir docs/STATUS.md.
+          NOTES
+          gh release create "$TAG" dist/*.ipa dist/SHA256SUMS.txt \
+            --repo popolski/minuit-tv --target "$CM_COMMIT" \
+            --title "Minuit $MINUIT_VERSION (build $MINUIT_BUILD)" --notes-file notes.md --latest
+          echo "Release : https://github.com/popolski/minuit-tv/releases/tag/$TAG"
+
+    artifacts:
+      - dist/*.ipa
+      - dist/SHA256SUMS.txt
+      - build.log
+      - core-tests.log

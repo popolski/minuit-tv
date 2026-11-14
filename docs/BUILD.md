@@ -38,6 +38,22 @@ Un seul workflow, `.github/workflows/build.yml`, déclenché à chaque `push` (b
 Le dépôt étant public, ces runners sont gratuits. Économies conservées : annulation
 du build précédent sur la même branche, cache des paquets Swift.
 
+## Codemagic (depuis le 14 novembre 2026)
+
+Le compte GitHub étant bloqué pour un problème de facturation, les builds passent par
+**Codemagic** (`codemagic.yaml`), comme pour Aurora : Mac mini M2, Xcode 27.1, offre
+gratuite de 500 minutes macOS par mois. Chaque push sur `main` lance tests du cœur,
+vérifications statiques, IPA vérifiée et Release GitHub `build-NNN` (numéro Codemagic + 100).
+Les tests d'interface sur simulateur ne sont pas lancés (minutes comptées).
+
+Mise en place, une fois :
+1. Dans Codemagic, ajouter l'application `popolski/minuit-tv` (même compte qu'Aurora).
+2. Dans ses variables d'environnement, créer le groupe `github` avec `GITHUB_TOKEN`
+   (secret) : jeton GitHub à grain fin donnant accès à `popolski/minuit-tv`,
+   permission « Contents : Read and write ». Le jeton d'Aurora peut être modifié pour
+   inclure aussi ce dépôt.
+3. Activer le déclenchement par webhook sur `main`.
+
 ## Lancer les tests localement
 
 NAS (SSH) ou Linux :

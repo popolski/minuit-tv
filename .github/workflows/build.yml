@@ -3,11 +3,10 @@ name: Build
 # Même méthode que Lanterne : chaque push compile l'application sur un Mac GitHub
 # (gratuit, le dépôt est public), vérifie l'IPA et, sur main, la publie en Release.
 
+# Désactivé au push depuis le 14 novembre 2026 : compte GitHub bloqué pour facturation, les
+# builds passent par Codemagic (codemagic.yaml). Lancement manuel seulement ; remettre le
+# déclencheur `push` une fois le compte débloqué.
 on:
-  push:
-    branches: ["main", "claude/**"]
-    tags: ["v*"]
-  pull_request:
   workflow_dispatch:
 
 concurrency:

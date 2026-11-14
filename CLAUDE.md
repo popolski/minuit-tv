@@ -2,10 +2,13 @@
 
 ## Builds et CI (autorisation permanente du propriétaire)
 
-- Le dépôt est **public** : les runners GitHub (Linux et macOS `xcode-27`) sont gratuits.
+- Le dépôt est **public**. Depuis le 14 novembre 2026, le compte GitHub est bloqué pour
+  facturation : les builds passent par **Codemagic** (`codemagic.yaml`, 500 min macOS/mois),
+  comme pour Aurora ; `.github/workflows/build.yml` n'est plus lancé qu'à la main.
 - **Lancer des builds sans demander confirmation**, comme pour Lanterne : tout push sur
-  `main` déclenche `.github/workflows/build.yml` (tests Linux, IPA tvOS vérifiée, Release
-  `build-N`). Un `workflow_dispatch` peut aussi être lancé sans demander.
+  `main` déclenche Codemagic (tests du cœur, IPA tvOS vérifiée, Release `build-N`,
+  numéro Codemagic + 100). Éviter les pushes inutiles (minutes comptées) : `[skip ci]`
+  pour la documentation seule.
 - Après un push, suivre le build et corriger les erreurs de compilation jusqu'au vert.
 - Si le dépôt devenait privé, redemander l'accord avant tout build macOS (facturable).
 
