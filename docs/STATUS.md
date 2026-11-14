@@ -22,6 +22,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Détection image figée / son sans image / blocage | ✅ | ✅ Linux | ✅ (scénarios) | ⏳ |
 | Échelle de reprise bornée | ✅ | ✅ Linux | ✅ | ⏳ |
 | Disponibilité replay / Start Over, sondage d'archive | ✅ | ✅ Linux | ✅ | ⏳ |
+| Replay : connexion libérée avant le sondage, sans Range, seconde passe, autre style d'URL | ✅ | ✅ (build 101) | ✅ (sondage) | ⏳ |
 | Keychain, reconnexion automatique, mode dégradé | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
@@ -52,7 +53,10 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Lecteur VOD : AetherEngine puis AVPlayer, ±10 s, avance rapide, pistes, épisode suivant | ✅ | ✅ | ✅ simulateur (ouverture, pistes, Retour) | ⏳ |
 
 État au 2 novembre 2026 :
-- **116 tests réussis** sous Linux (Swift 6.1.3) ; vérifications statiques OK (build 33, films et séries).
+- **118 tests réussis** (cœur) ; vérifications statiques OK.
+- **Depuis le 14 novembre 2026, CI sur Codemagic** (compte GitHub bloqué pour facturation) :
+  Mac mini M2, Xcode 27.1, Release `build-1NN` (build 101 : correctif du replay). Les tests
+  d'interface sur simulateur ne sont plus lancés.
 - **Application tvOS compilée** par la CI (image `xcode-27`, Xcode 27.1), sans avertissement
   dans le code de Minuit ; IPA vérifiée (arm64, tvOS, frameworks FFmpeg) — Release `build-3`.
 - **Apple TV (retour utilisateur)** : installation via atvloadly OK, connexion à un serveur
@@ -70,6 +74,9 @@ locale : il ne prouve rien sur les flux réels du fournisseur.
 
 - Lecture HD / Full HD OK ; 4K non (probablement côté fournisseur, à confirmer).
 - Zapping fluide ; panneaux ◀ ▶ OK ; guide OK ; veille, réseau : OK.
+- Replay (build 33) : toutes les archives « réponse vide ». Cause probable : sondage fait
+  pendant que le direct ou l'aperçu du guide occupait la connexion du compte. Corrigé en
+  build 101 (flux arrêté avant le sondage). À vérifier.
 - Replay (build 26) : sondage OK et première image reçue, mais rien à l'écran. Cause probable
   corrigée en build 27 : le lecteur s'ouvrait pendant la fermeture de la fiche du guide (feuille),
   présentation ignorée par tvOS. Repère « Lecteur affiché » ajouté au journal. À vérifier.
