@@ -167,3 +167,22 @@ final class PersistenceTests: XCTestCase {
         XCTAssertLessThan(size, 64 * 1024, "même un usage intensif reste petit")
     }
 }
+
+final class ArchiveProbeRequestTests: XCTestCase {
+    /// Le sondage ne demande pas de plage d'octets (réponses vides de certains scripts de timeshift)
+    /// et reconnaît le MPEG-TS dans les premiers octets.
+    func testProbeSendsNoRangeAndDetectsTransportStream() async {
+        var packets = Data(repeating: 0xFF, count: 188 * 4)
+        for offset in stride(from: 0, to: packets.count, by: 188) { packets[offset] = 0x47 }
+        let http = MockHTTPClient(sequence: [ok(packets)])
+        let verdict = await ArchiveProbe.probe(URL(string: "http://example.tv/timeshift/a/b/60/2026-11-14:20-00/1.ts")!, using: http)
+        XCTAssertEqual(verdict, .playable(.mpegts))
+        XCTAssertNil(http.requests.first?.byteRange)
+    }
+
+    func testEmptyBodyIsEmptyVerdict() async {
+        let http = MockHTTPClient(sequence: [ok(Data())])
+        let verdict = await ArchiveProbe.probe(URL(string: "http://example.tv/timeshift/a/b/60/2026-11-14:20-00/1.ts")!, using: http)
+        XCTAssertEqual(verdict, .empty)
+    }
+}

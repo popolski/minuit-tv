@@ -728,17 +728,30 @@ final class PlaybackController {
             showToast(availability.userLabel)
             return
         }
-        let previousPhase = phase
+        // Le direct (ou l'aperçu du guide) occupe la connexion du compte : sondée en même temps,
+        // l'archive revient vide sur les comptes à une connexion. On libère d'abord, on rétablit
+        // le direct si le replay est refusé.
+        let previousTarget = target
+        let wasStreaming = engine != nil
+        if wasStreaming { teardown() }
+        isPreview = false
         phase = .resolvingArchive
+        let connections = session.account.maxConnections.map(String.init) ?? "?"
+        log.log(.info, "replay", "Vérification de l'archive (connexions max : \(connections), flux arrêté : \(wasStreaming ? "oui" : "non"))")
+        if wasStreaming { try? await Task.sleep(nanoseconds: 1_500_000_000) }
         let formats: [StreamFormat] = [.hls, .mpegts].filter { format in
             session.account.allowedFormats.contains(format) && !archiveLadder(for: [format]).isEmpty
         }
         let resolution = await app.archive.resolve(channel: channel.id, window: window, formats: formats)
         switch resolution {
         case .unavailable(let reason):
-            phase = previousPhase == .resolvingArchive ? .idle : previousPhase
             showToast(reason)
             log.log(.warning, "replay", reason)
+            if let previousTarget, previousTarget.isLive {
+                tune(previousTarget)
+            } else {
+                phase = .idle
+            }
         case .playable(let playableFormats, let style):
             let ladder = archiveLadder(for: playableFormats)
             log.log(.info, "replay", "Formats lisibles : \(playableFormats.map(\.rawValue)) — essais : \(ladder.map(\.description))")

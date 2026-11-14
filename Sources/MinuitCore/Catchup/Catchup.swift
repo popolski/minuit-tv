@@ -173,8 +173,9 @@ public enum ArchiveProbe {
     /// donne `.httpError(0)`. Consomme brièvement une connexion du compte.
     public static func probe(_ url: URL, using http: HTTPClient, timeout: TimeInterval = 12) async -> Verdict {
         do {
-            let response = try await http.fetchPrefix(HTTPRequest(url: url, timeout: timeout, byteRange: 0...(probeByteCount - 1)),
-                                                      maxBytes: probeByteCount)
+            // Sans en-tête Range : certains scripts de timeshift répondent vide à une requête
+            // partielle. La lecture s'arrête de toute façon après `probeByteCount` octets.
+            let response = try await http.fetchPrefix(HTTPRequest(url: url, timeout: timeout), maxBytes: probeByteCount)
             return classify(statusCode: response.statusCode, contentType: response.header("Content-Type"),
                             body: response.body.prefix(probeByteCount))
         } catch {

@@ -33,8 +33,33 @@ final class ArchiveService {
     /// styles d'URL si aucun n'est encore confirmé.
     func resolve(channel: ChannelID, window: ArchiveWindow, formats: [StreamFormat]) async -> Resolution {
         guard let client else { return .unavailable("Session non initialisée.") }
-        let styles: [XtreamURLBuilder.TimeshiftStyle] = settings.confirmedStyle.map { [$0] } ?? [.path, .query]
+        // Style confirmé d'abord, l'autre ensuite : une confirmation ancienne peut être fausse.
+        let confirmed = settings.confirmedStyle
+        let styles: [XtreamURLBuilder.TimeshiftStyle] = confirmed.map { [$0] + XtreamURLBuilder.TimeshiftStyle.allCases.filter { $0 != confirmed } }
+            ?? [.path, .query]
+        // Réponses toutes vides : le serveur n'a peut-être pas encore libéré la connexion
+        // précédente, ou prépare l'archive. Une seconde passe, 2 s plus tard.
         var lastHint = "aucune réponse exploitable"
+        let startText = XtreamURLBuilder.timeshiftTimestamp(window.requestStart, timeZone: serverTimeZone)
+        log.log(.info, "replay", "Archive demandée : \(startText) (\(serverTimeZone.identifier)), \(window.durationMinutes) min")
+        for round in 0..<2 {
+            var allEmpty = true
+            if round > 0 {
+                log.log(.info, "replay", "Réponses vides : nouvel essai dans 2 s")
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+            if let result = await probeStyles(styles, client: client, channel: channel, window: window, formats: formats,
+                                              lastHint: &lastHint, allEmpty: &allEmpty) {
+                return result
+            }
+            if !allEmpty { break }
+        }
+        return .unavailable("Archive annoncée mais non lisible (\(lastHint)).")
+    }
+
+    private func probeStyles(_ styles: [XtreamURLBuilder.TimeshiftStyle], client: XtreamClient, channel: ChannelID,
+                             window: ArchiveWindow, formats: [StreamFormat],
+                             lastHint: inout String, allEmpty: inout Bool) async -> Resolution? {
         for style in styles {
             var playable: [StreamFormat] = []
             for format in formats {
@@ -47,21 +72,23 @@ final class ArchiveService {
                     // Un serveur peut répondre en MPEG-TS à une URL .m3u8 : on retient le format réel.
                     if !playable.contains(detected) { playable.append(detected) }
                 case .httpError(let code):
-                    lastHint = "le serveur répond \(code)"
+                    lastHint = code == 0 ? "pas de réponse du serveur" : "le serveur répond \(code)"
+                    allEmpty = false
                 case .notMedia(let hint), .providerMessage(let hint):
                     lastHint = hint
+                    allEmpty = false
                 case .empty:
                     lastHint = "réponse vide"
                 }
             }
             if !playable.isEmpty {
-                if settings.confirmedStyle == nil {
+                if settings.confirmedStyle != style {
                     settings.confirmedStyle = style
                     onStyleConfirmed?(style)
                 }
                 return .playable(formats: playable, style: style)
             }
         }
-        return .unavailable("Archive annoncée mais non lisible (\(lastHint)).")
+        return nil
     }
 }
