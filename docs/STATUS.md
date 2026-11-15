@@ -23,6 +23,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Échelle de reprise bornée | ✅ | ✅ Linux | ✅ | ⏳ |
 | Disponibilité replay / Start Over, sondage d'archive | ✅ | ✅ Linux | ✅ | ⏳ |
 | Replay : connexion libérée avant le sondage, sans Range, seconde passe, autre style d'URL | ✅ | ✅ (build 101) | ✅ (sondage) | ⏳ |
+| Replay : archive redirigée vers un serveur injoignable au sondage, lecture tentée quand même | ✅ | ✅ (build 102) | ✅ (verdict) | ⏳ |
 | Keychain, reconnexion automatique, mode dégradé | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
@@ -76,7 +77,9 @@ locale : il ne prouve rien sur les flux réels du fournisseur.
 - Zapping fluide ; panneaux ◀ ▶ OK ; guide OK ; veille, réseau : OK.
 - Replay (build 33) : toutes les archives « réponse vide ». Cause probable : sondage fait
   pendant que le direct ou l'aperçu du guide occupait la connexion du compte. Corrigé en
-  build 101 (flux arrêté avant le sondage). À vérifier.
+  build 101 (flux arrêté avant le sondage). Build 101 : redirection 302 vers des serveurs
+  HTTPS (port 8080) où le sondage échoue sans réponse ; build 102 : lecture tentée quand même,
+  erreur de connexion exacte journalisée. À vérifier.
 - Replay (build 26) : sondage OK et première image reçue, mais rien à l'écran. Cause probable
   corrigée en build 27 : le lecteur s'ouvrait pendant la fermeture de la fiche du guide (feuille),
   présentation ignorée par tvOS. Repère « Lecteur affiché » ajouté au journal. À vérifier.
