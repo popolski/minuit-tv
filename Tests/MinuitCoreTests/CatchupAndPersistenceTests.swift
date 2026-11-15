@@ -79,6 +79,7 @@ final class CatchupTests: XCTestCase {
         XCTAssertEqual(generic.refined(by: .providerMessage(hint: "page HTML")), .providerMessage)
         XCTAssertEqual(PlaybackFailure.health(.startupTimeout).refined(by: .httpError(403)), .http(403))
         XCTAssertEqual(PlaybackFailure.network.refined(by: .httpError(458)), .connectionLimit)
+        XCTAssertEqual(PlaybackFailure.unknown("aether").refined(by: .httpError(407)), .connectionLimit)
         // Code ambigu (réponse à l'en-tête Range), erreur réseau du sondage, flux sain : inchangé.
         XCTAssertEqual(generic.refined(by: .httpError(416)), generic)
         XCTAssertEqual(generic.refined(by: .unreachable(.cannotConnect)), generic)

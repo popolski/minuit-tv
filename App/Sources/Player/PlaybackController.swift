@@ -78,6 +78,11 @@ final class PlaybackController {
     @ObservationIgnored private var memory = PlaybackMemory()
     @ObservationIgnored private var hadFirstFrame = false
     @ObservationIgnored private var lastFailure: PlaybackFailure?
+    /// Le fournisseur redirige le direct vers « https://…:8080 » (port HTTP) : chaque chargement
+    /// lit la redirection et donne au moteur la cible réparée. Appris au premier refus TLS.
+    @ObservationIgnored private var liveRedirectRepair = false
+    /// Un seul nouvel essai après un 407 par chaîne (connexion du compte encore occupée).
+    @ObservationIgnored private var retriedAfter407 = false
     @ObservationIgnored private var suspendedTarget: PlaybackTarget?
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
     @ObservationIgnored private var networkAvailable = true
@@ -275,6 +280,7 @@ final class PlaybackController {
 
     private func tune(_ newTarget: PlaybackTarget, keepingVariantHistory: Bool = false) {
         guard let app, let session = app.session else { return }
+        retriedAfter407 = false
         if !keepingVariantHistory {
             triedVariants = [newTarget.channel]
             adaptive.reset()
@@ -361,7 +367,7 @@ final class PlaybackController {
         log.log(.info, "lecture", "Chargement \(gen) : \(attempt) — \(request.url.absoluteString)")
 
         let http = client.http
-        let repairRedirect = mediaOverride == nil && !request.mode.isLive
+        let repairRedirect = mediaOverride == nil && (!request.mode.isLive || liveRedirectRepair)
         let loadRequest = request
         loadTask = Task { [weak self] in
             do {
@@ -467,6 +473,7 @@ final class PlaybackController {
             return
         }
         if hadFirstFrame, failure == .health(.stalled) || failure == .health(.frozenVideo), adaptiveStepDown() { return }
+        if !hadFirstFrame, let attempt = activeAttempt, retryWithoutRecoveryStep(failure, attempt: attempt) { return }
         switch recovery.next(after: failure, hadFirstFrame: hadFirstFrame, at: now) {
         case .reload(let delay):
             statistics.recoveries += 1
@@ -487,6 +494,37 @@ final class PlaybackController {
         case .giveUp(let failure):
             if !fallBackToVariant(after: failure) { fail(failure) }
         }
+    }
+
+    /// Deux refus qui ne tiennent ni au moteur ni au format, réessayés tels quels :
+    /// - refus TLS sur le direct : redirection « https://…:8080 » vers un port HTTP, réparée
+    ///   désormais avant chaque chargement ;
+    /// - HTTP 407 : constaté juste après l'échec d'une autre chaîne sur un compte à une
+    ///   connexion (connexion encore comptée) ; un essai 4 s plus tard.
+    private func retryWithoutRecoveryStep(_ failure: PlaybackFailure, attempt: PlaybackAttempt) -> Bool {
+        if failure == .certificateRejected, isLive, !liveRedirectRepair, mediaOverride == nil {
+            liveRedirectRepair = true
+            log.log(.info, "lecture", "Refus TLS sur le direct : redirections réparées désormais, nouvel essai")
+            phase = .recovering("Nouvel essai…")
+            restartForRecovery(attempt)
+            return true
+        }
+        let is407 = failure == .http(407) || (engine?.lastErrorDetail?.contains("HTTP 407") ?? false)
+        if is407, !retriedAfter407 {
+            retriedAfter407 = true
+            log.log(.info, "lecture", "Refus 407 : connexion du compte peut-être encore occupée, nouvel essai dans 4 s")
+            engine?.stop()   // libère la connexion pendant l'attente
+            phase = .recovering("Connexion occupée, nouvel essai…")
+            generation += 1
+            let gen = generation
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard let self, gen == self.generation else { return }
+                self.restartForRecovery(attempt)
+            }
+            return true
+        }
+        return false
     }
 
     private func restartForRecovery(_ attempt: PlaybackAttempt) {

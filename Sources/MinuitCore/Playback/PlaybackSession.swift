@@ -146,7 +146,8 @@ public enum PlaybackFailure: Sendable, Equatable {
         }
         switch verdict {
         case .providerMessage: return .providerMessage
-        case .httpError(456), .httpError(458): return .connectionLimit
+        // 407 : refus constaté quand la connexion unique du compte est encore occupée.
+        case .httpError(407), .httpError(456), .httpError(458): return .connectionLimit
         // Pas les autres codes : un serveur peut répondre 416 à l'en-tête Range du sondage.
         case .httpError(let code) where [401, 403, 404].contains(code) || (500...599).contains(code): return .http(code)
         default: return self
