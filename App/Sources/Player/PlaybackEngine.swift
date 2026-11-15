@@ -11,6 +11,7 @@ struct EngineLoadRequest {
         case vod(startPosition: Double)
 
         var isVOD: Bool { if case .vod = self { return true } else { return false } }
+        var isLive: Bool { self == .live }
     }
 
     var url: URL

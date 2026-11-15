@@ -360,8 +360,22 @@ final class PlaybackController {
         }
         log.log(.info, "lecture", "Chargement \(gen) : \(attempt) — \(request.url.absoluteString)")
 
+        let http = client.http
+        let repairRedirect = mediaOverride == nil && !request.mode.isLive
+        let loadRequest = request
         loadTask = Task { [weak self] in
             do {
+                var request = loadRequest
+                if repairRedirect {
+                    // Archives : redirection vers « https://…:8080 » qui ne parle que HTTP (fournisseur
+                    // mal configuré) ; le moteur ne peut pas la corriger, on lui donne la cible réparée.
+                    let playable = await RedirectRepair.playableURL(for: request.url, using: http)
+                    guard let self, gen == self.generation, !Task.isCancelled else { return }
+                    if playable != request.url {
+                        self.log.log(.info, "lecture", "Redirection réparée (HTTP) : \(playable.absoluteString)")
+                        request.url = playable
+                    }
+                }
                 try await engine.load(request)
             } catch is CancellationError {
                 return

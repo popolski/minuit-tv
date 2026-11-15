@@ -130,8 +130,19 @@ final class VODPlayerController {
                                         mode: .vod(startPosition: start), userAgent: app.settings.userAgentPreset.value,
                                         matchContent: app.settings.matchContentFrameRate)
         log.log(.info, "vod", "Lecture \(gen) [\(kind.displayName)] départ \(Int(start)) s — \(fileURL.absoluteString)")
+        let http = app.client?.http
         loadTask = Task { [weak self] in
             do {
+                var request = request
+                if !DemoMode.isEnabled, let http {
+                    // Même réparation que pour les archives (redirection HTTPS vers un port HTTP).
+                    let playable = await RedirectRepair.playableURL(for: request.url, using: http)
+                    guard let self, gen == self.generation, !Task.isCancelled else { return }
+                    if playable != request.url {
+                        self.log.log(.info, "vod", "Redirection réparée (HTTP) : \(playable.absoluteString)")
+                        request.url = playable
+                    }
+                }
                 try await engine.load(request)
             } catch is CancellationError {
                 return

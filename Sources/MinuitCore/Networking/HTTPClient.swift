@@ -63,6 +63,8 @@ public protocol HTTPClient: Sendable {
     /// Lit au plus `maxBytes` octets puis coupe la connexion. Indispensable pour sonder
     /// un flux continu (direct, archive) qui ignorerait l'en-tête Range.
     func fetchPrefix(_ request: HTTPRequest, maxBytes: Int) async throws(TransportError) -> HTTPResponse
+    /// Cible d'une redirection, sans la suivre (la connexion est coupée dès les en-têtes).
+    func redirectTarget(_ request: HTTPRequest) async throws(TransportError) -> URL?
 }
 
 extension HTTPClient {
@@ -71,6 +73,9 @@ extension HTTPClient {
         response.body = response.body.prefix(maxBytes)
         return response
     }
+
+    /// Cible d'une redirection, sans la suivre (nil : pas de redirection, ou non pris en charge).
+    public func redirectTarget(_ request: HTTPRequest) async throws(TransportError) -> URL? { nil }
 }
 
 /// Client fondé sur URLSession. Aucune URL n'est jamais incluse dans les erreurs produites.
@@ -154,6 +159,20 @@ public final class URLSessionHTTPClient: HTTPClient {
             throw Self.classify(error)
         }
     }
+
+    public func redirectTarget(_ request: HTTPRequest) async throws(TransportError) -> URL? {
+        var urlRequest = URLRequest(url: request.url, timeoutInterval: request.timeout)
+        urlRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        do {
+            let (bytes, response) = try await session.bytes(for: urlRequest, delegate: NoRedirectDelegate())
+            bytes.task.cancel()
+            guard let http = response as? HTTPURLResponse, (300..<400).contains(http.statusCode),
+                  let location = http.value(forHTTPHeaderField: "Location") else { return nil }
+            return URL(string: location, relativeTo: request.url)?.absoluteURL
+        } catch {
+            throw Self.classify(error)
+        }
+    }
     #endif
 
     static func classify(_ error: Error) -> TransportError {
@@ -179,6 +198,14 @@ public final class URLSessionHTTPClient: HTTPClient {
 }
 
 #if canImport(Darwin)
+/// Délégué de tâche qui refuse de suivre les redirections (lecture de la cible seulement).
+final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
+    }
+}
+
 /// Délégué de session : journalise les redirections et les échecs de connexion sécurisée
 /// (adresse cible masquée par le journal, code TLS précis), et accepte le certificat
 /// présenté si le réglage « Accepter les certificats non vérifiés » est actif.
@@ -202,9 +229,17 @@ final class SessionDelegate: NSObject, URLSessionTaskDelegate {
 
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        var request = request
         if let target = request.url {
             DiagnosticsLog.shared.log(.info, "réseau",
                 "Redirection \(response.statusCode) vers \(target.scheme ?? "?")://\(target.host ?? "?"):\(target.port.map(String.init) ?? "défaut") — \(target.absoluteString)")
+            if let origin = task.originalRequest?.url {
+                let fixed = RedirectRepair.repaired(target, from: origin)
+                if fixed != target {
+                    DiagnosticsLog.shared.log(.info, "réseau", "Redirection HTTPS sur le port \(target.port ?? 0) ramenée en HTTP")
+                    request.url = fixed
+                }
+            }
         }
         completionHandler(request)
     }

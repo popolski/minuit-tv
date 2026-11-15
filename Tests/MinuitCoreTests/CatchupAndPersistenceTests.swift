@@ -195,3 +195,32 @@ final class ArchiveProbeTransportTests: XCTestCase {
         XCTAssertEqual(verdict, .unreachable(.secureConnectionFailed))
     }
 }
+
+final class RedirectRepairTests: XCTestCase {
+    private let origin = URL(string: "http://example.tv:8080/timeshift/a/b/32/2026-11-14:17-13/12059.ts")!
+
+    /// Constaté chez un fournisseur : 302 vers « https://…:8080 », port qui ne parle que HTTP.
+    func testHTTPSOnNonTLSPortFromHTTPOriginIsDowngraded() {
+        let target = URL(string: "https://g9amt9rd.lb21.example.dad:8080/timeshift/x/y/32/2026-11-14:17-13/12059.ts?token=abc&id=12059")!
+        XCTAssertEqual(RedirectRepair.repaired(target, from: origin).absoluteString,
+                       "http://g9amt9rd.lb21.example.dad:8080/timeshift/x/y/32/2026-11-14:17-13/12059.ts?token=abc&id=12059")
+    }
+
+    func testRegularRedirectsAreKept() {
+        let standard = URL(string: "https://cdn.example.dad/a.ts")!
+        XCTAssertEqual(RedirectRepair.repaired(standard, from: origin), standard, "HTTPS sans port explicite : inchangé")
+        let tls = URL(string: "https://cdn.example.dad:8443/a.ts")!
+        XCTAssertEqual(RedirectRepair.repaired(tls, from: origin), tls, "port TLS usuel : inchangé")
+        let plain = URL(string: "http://cdn.example.dad:8080/a.ts")!
+        XCTAssertEqual(RedirectRepair.repaired(plain, from: origin), plain)
+        let secureOrigin = URL(string: "https://example.tv/a.ts")!
+        let target = URL(string: "https://cdn.example.dad:8080/a.ts")!
+        XCTAssertEqual(RedirectRepair.repaired(target, from: secureOrigin), target, "origine HTTPS : jamais de rétrogradation")
+    }
+
+    func testPlayableURLWithoutRedirectKeepsOriginal() async {
+        let http = MockHTTPClient(sequence: [ok(Data())])
+        let url = await RedirectRepair.playableURL(for: origin, using: http)
+        XCTAssertEqual(url, origin)
+    }
+}
