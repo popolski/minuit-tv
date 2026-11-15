@@ -238,6 +238,7 @@ final class SessionDelegate: NSObject, URLSessionTaskDelegate {
                 if fixed != target {
                     DiagnosticsLog.shared.log(.info, "réseau", "Redirection HTTPS sur le port \(target.port ?? 0) ramenée en HTTP")
                     request.url = fixed
+                    RedirectRepair.observed = true
                 }
             }
         }

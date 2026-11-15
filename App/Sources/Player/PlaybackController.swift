@@ -367,7 +367,7 @@ final class PlaybackController {
         log.log(.info, "lecture", "Chargement \(gen) : \(attempt) — \(request.url.absoluteString)")
 
         let http = client.http
-        let repairRedirect = mediaOverride == nil && (!request.mode.isLive || liveRedirectRepair)
+        let repairRedirect = mediaOverride == nil && (!request.mode.isLive || liveRedirectRepair || RedirectRepair.observed)
         let loadRequest = request
         loadTask = Task { [weak self] in
             do {
@@ -502,11 +502,14 @@ final class PlaybackController {
     /// - HTTP 407 : constaté juste après l'échec d'une autre chaîne sur un compte à une
     ///   connexion (connexion encore comptée) ; un essai 4 s plus tard.
     private func retryWithoutRecoveryStep(_ failure: PlaybackFailure, attempt: PlaybackAttempt) -> Bool {
-        if failure == .certificateRejected, isLive, !liveRedirectRepair, mediaOverride == nil {
+        if failure == .certificateRejected, isLive, !liveRedirectRepair, mediaOverride == nil, let target {
             liveRedirectRepair = true
-            log.log(.info, "lecture", "Refus TLS sur le direct : redirections réparées désormais, nouvel essai")
+            RedirectRepair.observed = true
+            log.log(.info, "lecture", "Refus TLS sur le direct : redirections réparées désormais, reprise depuis le premier essai")
             phase = .recovering("Nouvel essai…")
-            restartForRecovery(attempt)
+            // Depuis le début de l'échelle : le MPEG-TS par AetherEngine sur l'adresse réparée.
+            // En HLS, les segments listés pointent eux aussi vers « https://…:8080 », irréparable.
+            tune(target, keepingVariantHistory: true)
             return true
         }
         let is407 = failure == .http(407) || (engine?.lastErrorDetail?.contains("HTTP 407") ?? false)
