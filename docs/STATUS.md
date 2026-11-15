@@ -25,6 +25,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Replay : connexion libérée avant le sondage, sans Range, seconde passe, autre style d'URL | ✅ | ✅ (build 101) | ✅ (sondage) | ⏳ |
 | Replay : archive redirigée vers un serveur injoignable au sondage, lecture tentée quand même | ✅ | ✅ (build 102) | ✅ (verdict) | ⏳ |
 | Redirection `https://…:8080` (port HTTP) ramenée en HTTP : sondages, archives, films | ✅ | ✅ (build 103) | ✅ | ⏳ |
+| Direct : redirection cassée réparée après un refus TLS ; un nouvel essai après un 407 (compte à une connexion) | ✅ | ✅ (build 104) | ✅ (407) | ⏳ |
 | Keychain, reconnexion automatique, mode dégradé | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
