@@ -42,6 +42,7 @@ final class ArchiveService {
         var lastHint = "aucune réponse exploitable"
         let startText = XtreamURLBuilder.timeshiftTimestamp(window.requestStart, timeZone: serverTimeZone)
         log.log(.info, "replay", "Archive demandée : \(startText) (\(serverTimeZone.identifier)), \(window.durationMinutes) min")
+        var unverified: (style: XtreamURLBuilder.TimeshiftStyle, formats: [StreamFormat])?
         for round in 0..<2 {
             var allEmpty = true
             if round > 0 {
@@ -49,19 +50,27 @@ final class ArchiveService {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
             if let result = await probeStyles(styles, client: client, channel: channel, window: window, formats: formats,
-                                              lastHint: &lastHint, allEmpty: &allEmpty) {
+                                              lastHint: &lastHint, allEmpty: &allEmpty, unverified: &unverified) {
                 return result
             }
             if !allEmpty { break }
+        }
+        // Aucune réponse HTTP (souvent après redirection vers un serveur de diffusion en HTTPS) :
+        // le sondage ne prouve rien, le lecteur (AetherEngine, ses propres connexions) essaie.
+        if let unverified {
+            log.log(.info, "replay", "Archive non vérifiée (\(lastHint)) : lecture tentée quand même en \(unverified.style.rawValue)")
+            return .playable(formats: unverified.formats, style: unverified.style)
         }
         return .unavailable("Archive annoncée mais non lisible (\(lastHint)).")
     }
 
     private func probeStyles(_ styles: [XtreamURLBuilder.TimeshiftStyle], client: XtreamClient, channel: ChannelID,
                              window: ArchiveWindow, formats: [StreamFormat],
-                             lastHint: inout String, allEmpty: inout Bool) async -> Resolution? {
+                             lastHint: inout String, allEmpty: inout Bool,
+                             unverified: inout (style: XtreamURLBuilder.TimeshiftStyle, formats: [StreamFormat])?) async -> Resolution? {
         for style in styles {
             var playable: [StreamFormat] = []
+            var unreachable: [StreamFormat] = []
             for format in formats {
                 let url = client.urls.timeshiftURL(channel: channel, start: window.requestStart, durationMinutes: window.durationMinutes,
                                                    serverTimeZone: serverTimeZone, style: style, format: format)
@@ -72,14 +81,22 @@ final class ArchiveService {
                     // Un serveur peut répondre en MPEG-TS à une URL .m3u8 : on retient le format réel.
                     if !playable.contains(detected) { playable.append(detected) }
                 case .httpError(let code):
-                    lastHint = code == 0 ? "pas de réponse du serveur" : "le serveur répond \(code)"
+                    lastHint = "le serveur répond \(code)"
                     allEmpty = false
+                case .unreachable(let error):
+                    lastHint = "pas de réponse du serveur : \(error)"
+                    allEmpty = false
+                    unreachable.append(format)
                 case .notMedia(let hint), .providerMessage(let hint):
                     lastHint = hint
                     allEmpty = false
                 case .empty:
                     lastHint = "réponse vide"
                 }
+            }
+            if unverified == nil, !unreachable.isEmpty {
+                // MPEG-TS d'abord : format natif des archives Xtream, lu par AetherEngine.
+                unverified = (style, unreachable.sorted { $0 == .mpegts && $1 != .mpegts })
             }
             if !playable.isEmpty {
                 if settings.confirmedStyle != style {

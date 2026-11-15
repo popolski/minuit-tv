@@ -210,12 +210,17 @@ final class SessionDelegate: NSObject, URLSessionTaskDelegate {
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let error = error as NSError?, error.domain == NSURLErrorDomain,
-              (-1206 ... -1200).contains(error.code) else { return }
+        guard let error = error as NSError?, error.code != NSURLErrorCancelled else { return }
         let stream = error.userInfo["_kCFStreamErrorCodeKey"].map { "\($0)" } ?? "?"
         let failing = (error.userInfo[NSURLErrorFailingURLErrorKey] as? URL)?.absoluteString ?? "?"
-        DiagnosticsLog.shared.log(.warning, "réseau",
-            "Connexion sécurisée refusée : code \(error.code), TLS \(stream), adresse \(failing)")
+        if error.domain == NSURLErrorDomain, (-1206 ... -1200).contains(error.code) {
+            DiagnosticsLog.shared.log(.warning, "réseau",
+                "Connexion sécurisée refusée : code \(error.code), TLS \(stream), adresse \(failing)")
+        } else {
+            // Toute autre coupure (nom d'hôte, port fermé, réponse illisible) : code exact pour le diagnostic.
+            DiagnosticsLog.shared.log(.warning, "réseau",
+                "Échec de connexion : \(error.domain) \(error.code), flux \(stream), adresse \(failing)")
+        }
     }
 }
 #endif

@@ -141,6 +141,9 @@ public enum ArchiveProbe {
         case providerMessage(hint: String)
         case httpError(Int)
         case empty
+        /// Aucune réponse HTTP (connexion, TLS, nom d'hôte…), souvent après une redirection
+        /// vers un autre serveur : l'archive n'est ni confirmée ni refusée.
+        case unreachable(TransportError)
     }
 
     public static let probeByteCount = 4096
@@ -170,7 +173,7 @@ public enum ArchiveProbe {
     }
 
     /// Sonde les premiers octets d'une URL de flux (archive ou direct). Une erreur réseau
-    /// donne `.httpError(0)`. Consomme brièvement une connexion du compte.
+    /// donne `.unreachable`. Consomme brièvement une connexion du compte.
     public static func probe(_ url: URL, using http: HTTPClient, timeout: TimeInterval = 12) async -> Verdict {
         do {
             // Sans en-tête Range : certains scripts de timeshift répondent vide à une requête
@@ -179,7 +182,7 @@ public enum ArchiveProbe {
             return classify(statusCode: response.statusCode, contentType: response.header("Content-Type"),
                             body: response.body.prefix(probeByteCount))
         } catch {
-            return .httpError(0)
+            return .unreachable((error as? TransportError) ?? .other(code: -1))
         }
     }
 

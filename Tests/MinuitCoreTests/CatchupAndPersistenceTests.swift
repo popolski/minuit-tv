@@ -81,7 +81,7 @@ final class CatchupTests: XCTestCase {
         XCTAssertEqual(PlaybackFailure.network.refined(by: .httpError(458)), .connectionLimit)
         // Code ambigu (réponse à l'en-tête Range), erreur réseau du sondage, flux sain : inchangé.
         XCTAssertEqual(generic.refined(by: .httpError(416)), generic)
-        XCTAssertEqual(generic.refined(by: .httpError(0)), generic)
+        XCTAssertEqual(generic.refined(by: .unreachable(.cannotConnect)), generic)
         XCTAssertEqual(generic.refined(by: .playable(.mpegts)), generic)
         // Une cause déjà précise n'est pas remplacée.
         XCTAssertEqual(PlaybackFailure.certificateRejected.refined(by: .providerMessage(hint: "page HTML")), .certificateRejected)
@@ -184,5 +184,14 @@ final class ArchiveProbeRequestTests: XCTestCase {
         let http = MockHTTPClient(sequence: [ok(Data())])
         let verdict = await ArchiveProbe.probe(URL(string: "http://example.tv/timeshift/a/b/60/2026-11-14:20-00/1.ts")!, using: http)
         XCTAssertEqual(verdict, .empty)
+    }
+}
+
+final class ArchiveProbeTransportTests: XCTestCase {
+    /// Une coupure réseau (après redirection, par exemple) n'est ni un refus ni une réponse vide.
+    func testTransportFailureIsUnreachable() async {
+        let http = MockHTTPClient(sequence: [.failure(.secureConnectionFailed)])
+        let verdict = await ArchiveProbe.probe(URL(string: "http://example.tv/timeshift/a/b/60/2026-11-14:20-00/1.ts")!, using: http)
+        XCTAssertEqual(verdict, .unreachable(.secureConnectionFailed))
     }
 }
