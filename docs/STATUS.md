@@ -26,6 +26,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Replay : archive redirigée vers un serveur injoignable au sondage, lecture tentée quand même | ✅ | ✅ (build 102) | ✅ (verdict) | ⏳ |
 | Redirection `https://…:8080` (port HTTP) ramenée en HTTP : sondages, archives, films | ✅ | ✅ (build 103) | ✅ | ⏳ |
 | Direct : redirection cassée réparée après un refus TLS ; un nouvel essai après un 407 (compte à une connexion) | ✅ | ✅ (build 104) | ✅ (407) | ⏳ |
+| Direct : après un refus TLS, reprise depuis le MPEG-TS sur l'adresse réparée ; réparation d'emblée une fois vue | ✅ | ✅ (build 105) | ✅ | ⏳ |
 | Keychain, reconnexion automatique, mode dégradé | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
