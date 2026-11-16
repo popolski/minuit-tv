@@ -27,6 +27,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Redirection `https://…:8080` (port HTTP) ramenée en HTTP : sondages, archives, films | ✅ | ✅ (build 103) | ✅ | ⏳ |
 | Direct : redirection cassée réparée après un refus TLS ; un nouvel essai après un 407 (compte à une connexion) | ✅ | ✅ (build 104) | ✅ (407) | ⏳ |
 | Direct : après un refus TLS, reprise depuis le MPEG-TS sur l'adresse réparée ; réparation d'emblée une fois vue | ✅ | ✅ (build 105) | ✅ | ⏳ |
+| Direct comme le lecteur web : agent VLC par défaut, redirection réparée dès le premier chargement, 0,5 s entre deux flux | ✅ | ✅ (build 106) | ✅ (réglage par défaut) | ⏳ |
 | Keychain, reconnexion automatique, mode dégradé | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
