@@ -134,17 +134,19 @@ final class PersistenceTests: XCTestCase {
         let settings = AppSettings()
         XCTAssertEqual(settings.transportSecurity, .allowHTTP, "HTTP accepté par défaut : la majorité des serveurs Xtream")
         XCTAssertEqual(settings.enginePreference, .automatic)
+        XCTAssertEqual(settings.userAgentPreset, .vlc, "agent VLC par défaut, comme le lecteur web")
         let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
         XCTAssertEqual(decoded, settings)
     }
 
     func testSettingsDecodingIsTolerant() throws {
         // Réglages d'une version antérieure : clé de reprise ancienne (ignorée), champ inconnu, champ manquant.
-        let old = Data(#"{"resumeLastChannelOnLaunch":true,"enginePreference":"preferAVPlayerHLS","futureField":42,"epgDaysAhead":"x"}"#.utf8)
+        let old = Data(#"{"resumeLastChannelOnLaunch":true,"enginePreference":"preferAVPlayerHLS","futureField":42,"epgDaysAhead":"x","userAgentPreset":"minuit"}"#.utf8)
         let settings = try JSONDecoder().decode(AppSettings.self, from: old)
         XCTAssertFalse(settings.resumeLastChannelOnLaunch, "reprise automatique désactivée par défaut")
         XCTAssertEqual(settings.enginePreference, .preferAVPlayerHLS, "les réglages valides sont conservés")
         XCTAssertEqual(settings.epgDaysAhead, 2, "valeur illisible → défaut")
+        XCTAssertEqual(settings.userAgentPreset, .vlc, "ancien agent « Minuit » enregistré : ignoré, VLC par défaut")
         XCTAssertTrue(settings.acceptInvalidStreamCertificates, "réglage absent des anciennes versions → défaut")
         var changed = AppSettings()
         changed.resumeLastChannelOnLaunch = true

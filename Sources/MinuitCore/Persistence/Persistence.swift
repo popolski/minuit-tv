@@ -147,7 +147,8 @@ public struct AppSettings: Sendable, Codable, Equatable {
     public var resumeLastChannelOnLaunch: Bool = false
     public var enginePreference: EnginePreference = .automatic
     public var transportSecurity: TransportSecurityPolicy = .allowHTTP
-    public var userAgentPreset: UserAgentPreset = .minuit
+    /// Agent « VLC » par défaut : celui du lecteur web qui lit ce fournisseur sans souci.
+    public var userAgentPreset: UserAgentPreset = .vlc
     public var catchup: CatchupSettings = CatchupSettings()
     /// Inverse le sens haut/bas du zapping.
     public var invertZapDirection: Bool = false
@@ -174,7 +175,10 @@ public struct AppSettings: Sendable, Codable, Equatable {
     enum CodingKeys: String, CodingKey {
         // Clé renommée : l'ancienne valeur (activée par défaut) est volontairement ignorée.
         case resumeLastChannelOnLaunch = "resumeLastChannelAtLaunch"
-        case enginePreference, transportSecurity, userAgentPreset, catchup, invertZapDirection,
+        // Clé renommée quand « Compatible VLC » est devenu le défaut : l'ancien choix enregistré
+        // (« Minuit », jamais choisi exprès) est volontairement ignoré.
+        case userAgentPreset = "streamUserAgent"
+        case enginePreference, transportSecurity, catchup, invertZapDirection,
              showInfoOnZap, matchContentFrameRate, useXMLTV, epgDaysAhead, acceptInvalidStreamCertificates, adaptiveQuality,
              customXMLTVURL, cleanChannelNames, guidePreview
     }
@@ -224,8 +228,8 @@ public enum UserAgentPreset: String, Sendable, Codable, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .minuit: return "Minuit (par défaut)"
-        case .vlc: return "Compatible VLC"
+        case .minuit: return "Minuit"
+        case .vlc: return "Compatible VLC (par défaut)"
         case .okhttp: return "Compatible Android"
         }
     }

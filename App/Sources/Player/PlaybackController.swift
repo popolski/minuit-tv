@@ -78,9 +78,9 @@ final class PlaybackController {
     @ObservationIgnored private var memory = PlaybackMemory()
     @ObservationIgnored private var hadFirstFrame = false
     @ObservationIgnored private var lastFailure: PlaybackFailure?
-    /// Le fournisseur redirige le direct vers « https://…:8080 » (port HTTP) : chaque chargement
-    /// lit la redirection et donne au moteur la cible réparée. Appris au premier refus TLS.
-    @ObservationIgnored private var liveRedirectRepair = false
+    /// Fin du dernier flux (moteur arrêté) : le suivant attend 0,5 s, le temps que le
+    /// fournisseur constate la fermeture (compte à une connexion). Comme le lecteur web.
+    @ObservationIgnored private var streamReleasedAt: TimeInterval = 0
     /// Un seul nouvel essai après un 407 par chaîne (connexion du compte encore occupée).
     @ObservationIgnored private var retriedAfter407 = false
     @ObservationIgnored private var suspendedTarget: PlaybackTarget?
@@ -338,6 +338,8 @@ final class PlaybackController {
         monitor.reset(at: now)
         stableTask?.cancel()
 
+        if let engine { release(engine) }   // ancien flux fermé avant d'en ouvrir un autre
+        let pause = max(0, streamReleasedAt + 0.5 - now)
         guard let engine = installEngine(attempt.engine) else {
             handle(.failed(.unsupportedFormat), generation: gen)
             return
@@ -367,19 +369,24 @@ final class PlaybackController {
         log.log(.info, "lecture", "Chargement \(gen) : \(attempt) — \(request.url.absoluteString)")
 
         let http = client.http
-        let repairRedirect = mediaOverride == nil && (!request.mode.isLive || liveRedirectRepair || RedirectRepair.observed)
+        let repairRedirect = mediaOverride == nil
         let loadRequest = request
         loadTask = Task { [weak self] in
             do {
                 var request = loadRequest
+                if pause > 0 { try await Task.sleep(nanoseconds: UInt64(pause * 1_000_000_000)) }
                 if repairRedirect {
-                    // Archives : redirection vers « https://…:8080 » qui ne parle que HTTP (fournisseur
-                    // mal configuré) ; le moteur ne peut pas la corriger, on lui donne la cible réparée.
+                    // Redirection vers « https://…:8080 » qui ne parle que HTTP (fournisseur mal
+                    // configuré) : le moteur ne peut pas la corriger, on lui donne d'emblée la cible
+                    // réparée, direct compris (un premier essai raté occuperait la connexion du compte).
                     let playable = await RedirectRepair.playableURL(for: request.url, using: http)
                     guard let self, gen == self.generation, !Task.isCancelled else { return }
                     if playable != request.url {
                         self.log.log(.info, "lecture", "Redirection réparée (HTTP) : \(playable.absoluteString)")
                         request.url = playable
+                    } else if request.mode.isLive {
+                        // Pas de redirection à réparer : le sondage a pu ouvrir le flux lui-même, même pause.
+                        try await Task.sleep(nanoseconds: 500_000_000)
                     }
                 }
                 try await engine.load(request)
@@ -401,6 +408,12 @@ final class PlaybackController {
             }
         }
         startHealthLoop()
+    }
+
+    /// Arrête le flux du moteur et note l'heure (pause avant le flux suivant).
+    private func release(_ engine: PlaybackEngine) {
+        engine.stop()
+        streamReleasedAt = now
     }
 
     /// Installe le moteur demandé ; arrête et retire l'éventuel moteur d'un autre type.
@@ -496,27 +509,15 @@ final class PlaybackController {
         }
     }
 
-    /// Deux refus qui ne tiennent ni au moteur ni au format, réessayés tels quels :
-    /// - refus TLS sur le direct : redirection « https://…:8080 » vers un port HTTP, réparée
-    ///   désormais avant chaque chargement ;
-    /// - HTTP 407 : constaté juste après l'échec d'une autre chaîne sur un compte à une
-    ///   connexion (connexion encore comptée) ; un essai 4 s plus tard.
+    /// Refus qui ne tient ni au moteur ni au format, réessayé tel quel : HTTP 407, constaté
+    /// juste après l'échec d'une autre chaîne sur un compte à une connexion (connexion encore
+    /// comptée) ; un essai 4 s plus tard.
     private func retryWithoutRecoveryStep(_ failure: PlaybackFailure, attempt: PlaybackAttempt) -> Bool {
-        if failure == .certificateRejected, isLive, !liveRedirectRepair, mediaOverride == nil, let target {
-            liveRedirectRepair = true
-            RedirectRepair.observed = true
-            log.log(.info, "lecture", "Refus TLS sur le direct : redirections réparées désormais, reprise depuis le premier essai")
-            phase = .recovering("Nouvel essai…")
-            // Depuis le début de l'échelle : le MPEG-TS par AetherEngine sur l'adresse réparée.
-            // En HLS, les segments listés pointent eux aussi vers « https://…:8080 », irréparable.
-            tune(target, keepingVariantHistory: true)
-            return true
-        }
         let is407 = failure == .http(407) || (engine?.lastErrorDetail?.contains("HTTP 407") ?? false)
         if is407, !retriedAfter407 {
             retriedAfter407 = true
             log.log(.info, "lecture", "Refus 407 : connexion du compte peut-être encore occupée, nouvel essai dans 4 s")
-            engine?.stop()   // libère la connexion pendant l'attente
+            if let engine { release(engine) }   // libère la connexion pendant l'attente
             phase = .recovering("Connexion occupée, nouvel essai…")
             generation += 1
             let gen = generation
@@ -546,7 +547,7 @@ final class PlaybackController {
         statistics.failures += 1
         stopHealthLoop()
         failureDetail = [activeAttempt?.description, engine?.lastErrorDetail].compactMap { $0 }.joined(separator: " · ")
-        engine?.stop()   // libère la connexion du compte
+        if let engine { release(engine) }   // libère la connexion du compte
         phase = .failed(failure.userMessage)
         log.log(.error, "lecture", "Abandon : \(failure) — \(failureDetail ?? "")")
         if case .live(let channel) = target, mediaOverride == nil, let format = activeAttempt?.format {
@@ -669,7 +670,7 @@ final class PlaybackController {
         stopHealthLoop()
         if let engine {
             engine.onEvent = nil
-            engine.stop()
+            release(engine)
             engine.renderView.removeFromSuperview()
         }
         engine = nil
