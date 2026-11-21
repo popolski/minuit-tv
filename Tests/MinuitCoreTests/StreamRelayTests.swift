@@ -48,4 +48,37 @@ final class StreamRelayTests: XCTestCase {
         XCTAssertFalse(head.contains("Cookie"))
         XCTAssertTrue(head.hasSuffix("Connection: close\r\n\r\n"))
     }
+
+    func testUpstreamRequestIsPlainHTTPWithEncodedTarget() throws {
+        let url = try XCTUnwrap(URL(string: "http://x.lb1.exemple.dad:8080/live/a%20b/p/1.ts?token=abc&t=1"))
+        let text = String(decoding: UpstreamRequest.make(url: url, userAgent: "VLC/3.0.21 LibVLC/3.0.21", range: "bytes=10-"),
+                          as: UTF8.self)
+        XCTAssertTrue(text.hasPrefix("GET /live/a%20b/p/1.ts?token=abc&t=1 HTTP/1.1\r\nHost: x.lb1.exemple.dad:8080\r\n"))
+        XCTAssertTrue(text.contains("User-Agent: VLC/3.0.21 LibVLC/3.0.21\r\n"))
+        XCTAssertTrue(text.contains("Range: bytes=10-\r\n"))
+        XCTAssertTrue(text.hasSuffix("Connection: close\r\nRange: bytes=10-\r\n\r\n"))
+        let bare = String(decoding: UpstreamRequest.make(url: try XCTUnwrap(URL(string: "http://h")), userAgent: "u", range: nil),
+                          as: UTF8.self)
+        XCTAssertTrue(bare.hasPrefix("GET / HTTP/1.1\r\nHost: h\r\n"))
+    }
+
+    func testUpstreamResponseHeadAndRedirect() {
+        XCTAssertEqual(UpstreamResponseHead.parse(Data("HTTP/1.1 302 Found\r\nLoc".utf8)), .needMoreData)
+        XCTAssertEqual(UpstreamResponseHead.parse(Data("garbage\r\n\r\n".utf8)), .invalid)
+        let raw = Data("HTTP/1.1 302 Found\r\nLocation: https://x.dad:8080/live/1.ts?token=t\r\nContent-Length: 0\r\n\r\nTS".utf8)
+        guard case .complete(let head) = UpstreamResponseHead.parse(raw) else { return XCTFail("en-tête complet") }
+        XCTAssertEqual(head.status, 302)
+        XCTAssertTrue(head.isRedirect)
+        XCTAssertEqual(head.headers["location"], "https://x.dad:8080/live/1.ts?token=t")
+        XCTAssertEqual(raw.count - head.bodyOffset, 2, "début du corps juste après l'en-tête")
+        guard case .complete(let busy) = UpstreamResponseHead.parse(Data("HTTP/1.0 458 X\r\nTransfer-Encoding: chunked\r\n\r\n".utf8))
+        else { return XCTFail("en-tête complet") }
+        XCTAssertTrue(busy.isConnectionLimit)
+        XCTAssertTrue(busy.isChunked)
+    }
+
+    func testChunkedDecoding() {
+        XCTAssertEqual(ChunkedDecoding.decode(Data("7\r\n#EXTM3U\r\n3;x=1\r\n\nab\r\n0\r\n\r\n".utf8)), Data("#EXTM3U\nab".utf8))
+        XCTAssertNil(ChunkedDecoding.decode(Data("7\r\n#EX".utf8)), "corps tronqué")
+    }
 }

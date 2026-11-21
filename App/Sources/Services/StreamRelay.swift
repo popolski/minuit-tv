@@ -1,20 +1,25 @@
 import Foundation
 import Network
+import Security
 import MinuitCore
 
 /// Relais local des flux, comme le lecteur web qui lit ce fournisseur sans souci.
 ///
 /// Le moteur vidéo lit `http://127.0.0.1:<port>/s/<séance>/<n>.<ext>` et ne parle plus jamais
-/// au fournisseur. Le relais va chercher le flux avec URLSession :
+/// au fournisseur. Le relais va chercher le flux sur une connexion TCP brute (framework
+/// Network), **sans URLSession** : le domaine `.dad` des serveurs de redirection est dans la
+/// liste HSTS préchargée, et CFNetwork réécrirait chaque `http://….dad:8080` en `https://`
+/// (échec TLS, ce port ne parle que HTTP). Comme le relais Python du lecteur web :
 /// - agent choisi dans les réglages (VLC par défaut), réponse non compressée ;
-/// - chaque redirection `https://hôte:port` (port autre que 443/8443) depuis une adresse HTTP
-///   est ramenée en HTTP, à chaque saut ;
+/// - redirections suivies une à une ; un saut `https://hôte:port` (port autre que 443/8443)
+///   depuis une adresse HTTP est ramené en HTTP ;
+/// - 407/456/458 (compte déjà occupé) : un nouvel essai 4 s plus tard ;
 /// - listes HLS réécrites : segments, sous-listes et clés repassent par le relais ;
 /// - compte à une connexion : une nouvelle séance coupe les flux des précédentes, puis attend
 ///   0,5 s après la dernière coupure avant d'ouvrir le flux suivant.
 /// Tout l'état vit sur `queue` (file série) ; les URL ne sont journalisées que par
 /// `DiagnosticsLog` (identifiants masqués).
-final class StreamRelay: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+final class StreamRelay: @unchecked Sendable {
     static let shared = StreamRelay()
 
     private let queue = DispatchQueue(label: "minuit.relay")
@@ -26,42 +31,27 @@ final class StreamRelay: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private var userAgent = UserAgentPreset.vlc.value
     private var trustsInvalidCertificates = true
     private var streams: [Int: Relayed] = [:]
+    private var nextID = 0
     /// Dernière fin de flux (coupure ou fin normale) et sa séance : la séance suivante attend 0,5 s.
     private var lastEnd = Date.distantPast
     private var lastEndSession = 0
     private var loggedSession = 0
 
-    /// Un flux relayé : connexion du moteur et requête amont.
-    private final class Relayed {
+    /// Un flux relayé : connexion du moteur et connexion amont en cours (état lu sur `queue` seulement).
+    private final class Relayed: @unchecked Sendable {
         let connection: NWConnection
         let session: Int
         let url: URL
-        var task: URLSessionDataTask?
+        let range: String?
+        var upstream: NWConnection?
         var headSent = false
-        var playlist: Data?
-        var pending = 0
-        var suspended = false
-        init(connection: NWConnection, session: Int, url: URL) {
+        init(connection: NWConnection, session: Int, url: URL, range: String?) {
             self.connection = connection
             self.session = session
             self.url = url
+            self.range = range
         }
     }
-
-    private lazy var urlSession: URLSession = {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 20
-        configuration.timeoutIntervalForResource = 24 * 3600   // le direct ne finit jamais
-        configuration.httpMaximumConnectionsPerHost = 4
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        configuration.urlCache = nil
-        configuration.httpCookieStorage = nil
-        configuration.tlsMinimumSupportedProtocolVersion = .TLSv10
-        let delegateQueue = OperationQueue()
-        delegateQueue.maxConcurrentOperationCount = 1
-        delegateQueue.underlyingQueue = queue
-        return URLSession(configuration: configuration, delegate: self, delegateQueue: delegateQueue)
-    }()
 
     // MARK: API
 
@@ -191,43 +181,47 @@ final class StreamRelay: NSObject, URLSessionDataDelegate, @unchecked Sendable {
             loggedSession = session
             log.log(.info, "relais", "Séance \(session) : \(url.absoluteString)")
         }
-        var request = URLRequest(url: url, timeoutInterval: 20)
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
-        if let range { request.setValue(range, forHTTPHeaderField: "Range") }
-        let task = urlSession.dataTask(with: request)
-        let id = task.taskIdentifier
-        let relayed = Relayed(connection: connection, session: session, url: url)
-        relayed.task = task
-        streams[id] = relayed
+        nextID += 1
+        let id = nextID
+        streams[id] = Relayed(connection: connection, session: session, url: url, range: range)
         connection.stateUpdateHandler = { [weak self] state in
             switch state {
-            case .failed, .cancelled: if self?.streams[id] != nil { task.cancel() }
+            case .failed, .cancelled: self?.end(id)
             default: break
             }
         }
-        watchForClose(connection, task: task)
-        task.resume()
+        watchForClose(connection, id: id)
+        fetch(url, id: id, hops: 0, retried: false)
     }
 
     /// Le moteur ferme la connexion (flux arrêté, changement de chaîne) : on ferme l'amont.
-    private func watchForClose(_ connection: NWConnection, task: URLSessionDataTask) {
+    private func watchForClose(_ connection: NWConnection, id: Int) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 1024) { [weak self] _, _, isComplete, error in
             if isComplete || error != nil {
-                task.cancel()
+                self?.end(id)
             } else {
-                self?.watchForClose(connection, task: task)
+                self?.watchForClose(connection, id: id)
             }
         }
     }
 
     /// Coupe les flux des séances antérieures à `session` ; la coupure compte comme fin de flux.
     private func cut(before session: Int) {
-        let old = streams.filter { $0.value.session < session }
-        guard !old.isEmpty else { return }
+        for (id, stream) in streams where stream.session < session { end(id) }
+    }
+
+    /// Fin d'un flux : amont fermé, moteur servi (`status` si rien n'a encore été envoyé) puis fermé.
+    private func end(_ id: Int, status: Int? = nil) {
+        guard let stream = streams.removeValue(forKey: id) else { return }
         lastEnd = Date()
-        lastEndSession = old.values.map(\.session).max() ?? 0
-        old.values.forEach { $0.task?.cancel() }
+        lastEndSession = stream.session
+        stream.upstream?.cancel()
+        if let status, !stream.headSent {
+            reply(stream.connection, status: status)
+        } else {
+            stream.connection.send(content: nil, contentContext: .finalMessage, isComplete: true,
+                                   completion: .contentProcessed { _ in stream.connection.cancel() })
+        }
     }
 
     private func reply(_ connection: NWConnection, status: Int) {
@@ -235,102 +229,130 @@ final class StreamRelay: NSObject, URLSessionDataDelegate, @unchecked Sendable {
                         completion: .contentProcessed { _ in connection.cancel() })
     }
 
-    private func finish(_ stream: Relayed) {
-        stream.connection.send(content: nil, contentContext: .finalMessage, isComplete: true,
-                               completion: .contentProcessed { _ in stream.connection.cancel() })
+    // MARK: Amont (TCP brut, sans HSTS)
+
+    private func fetch(_ url: URL, id: Int, hops: Int, retried: Bool) {
+        guard let stream = streams[id] else { return }
+        guard let host = url.host, !host.isEmpty else { return end(id, status: 502) }
+        let tls = url.scheme?.lowercased() == "https"
+        let tcp = NWProtocolTCP.Options()
+        tcp.connectionTimeout = 10
+        var tlsOptions: NWProtocolTLS.Options?
+        if tls {
+            let options = NWProtocolTLS.Options()
+            if trustsInvalidCertificates {
+                sec_protocol_options_set_verify_block(options.securityProtocolOptions, { _, _, complete in complete(true) }, queue)
+            }
+            tlsOptions = options
+        }
+        let port = NWEndpoint.Port(rawValue: UInt16(clamping: url.port ?? (tls ? 443 : 80))) ?? (tls ? .https : .http)
+        let upstream = NWConnection(host: NWEndpoint.Host(host), port: port,
+                                    using: NWParameters(tls: tlsOptions, tcp: tcp))
+        stream.upstream?.cancel()
+        stream.upstream = upstream
+        upstream.stateUpdateHandler = { [weak self] state in
+            guard let self, let stream = self.streams[id], stream.upstream === upstream else { return }
+            switch state {
+            case .failed(let error), .waiting(let error):
+                self.log.log(.warning, "relais", "Amont injoignable : \(error) pour \(url.absoluteString)")
+                self.end(id, status: 502)
+            default:
+                break
+            }
+        }
+        upstream.start(queue: queue)
+        upstream.send(content: UpstreamRequest.make(url: url, userAgent: userAgent, range: stream.range),
+                      completion: .contentProcessed { _ in })
+        readHead(upstream, url: url, id: id, hops: hops, retried: retried, buffer: Data())
     }
 
-    // MARK: URLSession
+    private func readHead(_ upstream: NWConnection, url: URL, id: Int, hops: Int, retried: Bool, buffer: Data) {
+        upstream.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
+            guard let self, let stream = self.streams[id], stream.upstream === upstream else { return upstream.cancel() }
+            var buffer = buffer
+            if let data { buffer.append(data) }
+            switch UpstreamResponseHead.parse(buffer) {
+            case .needMoreData where error == nil && !isComplete:
+                self.readHead(upstream, url: url, id: id, hops: hops, retried: retried, buffer: buffer)
+            case .needMoreData, .invalid:
+                self.log.log(.warning, "relais", "Amont : réponse illisible\(error.map { " (\($0))" } ?? "") pour \(url.absoluteString)")
+                self.end(id, status: 502)
+            case .complete(let head):
+                self.respond(head, body: Data(buffer.dropFirst(head.bodyOffset)), finished: isComplete || error != nil,
+                             upstream: upstream, url: url, id: id, hops: hops, retried: retried)
+            }
+        }
+    }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
-        var request = request
-        if let target = request.url, let origin = response.url ?? task.currentRequest?.url {
-            let fixed = RedirectRepair.repaired(target, from: origin)
+    private func respond(_ head: UpstreamResponseHead, body: Data, finished: Bool, upstream: NWConnection,
+                         url: URL, id: Int, hops: Int, retried: Bool) {
+        guard let stream = streams[id] else { return }
+        if head.isRedirect, hops < 8, let location = head.headers["location"],
+           let target = URL(string: location, relativeTo: url)?.absoluteURL {
+            let fixed = RedirectRepair.repaired(target, from: url)
             if fixed != target {
                 log.log(.info, "relais", "Redirection HTTPS sur le port \(target.port ?? 0) ramenée en HTTP")
-                request.url = fixed
             }
+            return fetch(fixed, id: id, hops: hops + 1, retried: retried)
         }
-        completionHandler(request)
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge,
-                    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        guard trustsInvalidCertificates,
-              challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-              let trust = challenge.protectionSpace.serverTrust else {
-            return completionHandler(.performDefaultHandling, nil)
-        }
-        completionHandler(.useCredential, URLCredential(trust: trust))
-    }
-
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
-                    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
-        guard let stream = streams[dataTask.taskIdentifier] else { return completionHandler(.cancel) }
-        let http = response as? HTTPURLResponse
-        let status = http?.statusCode ?? 200
-        var headers: [String: String] = [:]
-        for (key, value) in http?.allHeaderFields ?? [:] { headers[String(describing: key)] = String(describing: value) }
-        if status >= 400 {
-            log.log(.warning, "relais", "Amont : HTTP \(status) pour \(stream.url.absoluteString)")
-        }
-        if status == 200, HLSPlaylistRewriter.isPlaylist(contentType: http?.mimeType ?? headers["Content-Type"],
-                                                         url: response.url ?? stream.url) {
-            stream.playlist = Data()   // réécrite une fois complète
-        } else {
-            stream.headSent = true
-            stream.connection.send(content: RelayResponseHead.make(status: status, headers: headers), completion: .idempotent)
-        }
-        completionHandler(.allow)
-    }
-
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        guard let stream = streams[dataTask.taskIdentifier] else { return dataTask.cancel() }
-        if stream.playlist != nil {
-            stream.playlist?.append(data)
-            if (stream.playlist?.count ?? 0) > 8 * 1024 * 1024 { dataTask.cancel() }
+        if head.isConnectionLimit, !retried {
+            log.log(.warning, "relais", "Amont : HTTP \(head.status) (connexion du compte occupée), nouvel essai dans 4 s")
+            upstream.cancel()
+            stream.upstream = nil
+            queue.asyncAfter(deadline: .now() + 4) {
+                self.fetch(stream.url, id: id, hops: 0, retried: true)
+            }
             return
         }
-        // Contre-pression : le moteur lit moins vite que l'amont n'envoie (films, archives).
-        stream.pending += data.count
-        if stream.pending > 4 * 1024 * 1024, !stream.suspended {
-            stream.suspended = true
-            dataTask.suspend()
+        if head.status >= 400 {
+            log.log(.warning, "relais", "Amont : HTTP \(head.status) pour \(url.absoluteString)")
         }
-        stream.connection.send(content: data, completion: .contentProcessed { [weak self] error in
-            guard let self else { return }
-            stream.pending -= data.count
-            if error != nil {
-                dataTask.cancel()
-            } else if stream.suspended, stream.pending < 1024 * 1024, self.streams[dataTask.taskIdentifier] != nil {
-                stream.suspended = false
-                dataTask.resume()
-            }
+        if head.status == 200, HLSPlaylistRewriter.isPlaylist(contentType: head.headers["content-type"], url: url) {
+            return readPlaylist(upstream, head: head, base: url, id: id, buffer: body, finished: finished)
+        }
+        stream.headSent = true
+        stream.connection.send(content: RelayResponseHead.make(status: head.status, headers: head.headers) + body,
+                               completion: .contentProcessed { [weak self] error in
+            if error != nil || finished { self?.end(id) } else { self?.pump(upstream, id: id) }
         })
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let stream = streams.removeValue(forKey: task.taskIdentifier) else { return }
-        lastEnd = Date()
-        lastEndSession = stream.session
-        if let playlist = stream.playlist, error == nil {
-            let base = task.response?.url ?? stream.url
-            let text = HLSPlaylistRewriter.rewrite(String(decoding: playlist, as: UTF8.self), base: base) { url in
-                let path = self.routes.path(for: url, session: stream.session)
-                return "http://127.0.0.1:\(self.port ?? 0)\(path)"
+    /// Recopie l'amont vers le moteur ; la lecture suivante attend l'envoi (contre-pression).
+    private func pump(_ upstream: NWConnection, id: Int) {
+        upstream.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [weak self] data, _, isComplete, error in
+            guard let self, let stream = self.streams[id], stream.upstream === upstream else { return }
+            let finished = isComplete || error != nil
+            guard let data, !data.isEmpty else { return finished ? self.end(id) : self.pump(upstream, id: id) }
+            stream.connection.send(content: data, completion: .contentProcessed { [weak self] sendError in
+                if sendError != nil || finished { self?.end(id) } else { self?.pump(upstream, id: id) }
+            })
+        }
+    }
+
+    private func readPlaylist(_ upstream: NWConnection, head: UpstreamResponseHead, base: URL, id: Int,
+                              buffer: Data, finished: Bool) {
+        guard let stream = streams[id] else { return }
+        let length = head.headers["content-length"].flatMap { Int($0) }
+        if finished || (length.map { buffer.count >= $0 } ?? false) {
+            upstream.cancel()
+            var raw = length.map { Data(buffer.prefix($0)) } ?? buffer
+            if head.isChunked { raw = ChunkedDecoding.decode(raw) ?? raw }
+            let text = HLSPlaylistRewriter.rewrite(String(decoding: raw, as: UTF8.self), base: base) { url in
+                "http://127.0.0.1:\(self.port ?? 0)\(self.routes.path(for: url, session: stream.session))"
             }
             let body = Data(text.utf8)
+            stream.headSent = true
             stream.connection.send(content: RelayResponseHead.make(status: 200, headers: [
                 "Content-Type": "application/vnd.apple.mpegurl", "Content-Length": String(body.count)]) + body,
                                    completion: .idempotent)
-        } else if let error, !stream.headSent {
-            let nsError = error as NSError
-            if nsError.code != NSURLErrorCancelled {
-                log.log(.warning, "relais", "Amont injoignable : \(nsError.domain) \(nsError.code) pour \(stream.url.absoluteString)")
-            }
-            return reply(stream.connection, status: 502)
+            return end(id)
         }
-        finish(stream)
+        guard buffer.count <= 8 * 1024 * 1024 else { return end(id, status: 502) }
+        upstream.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [weak self] data, _, isComplete, error in
+            guard let self, let current = self.streams[id], current.upstream === upstream else { return }
+            var buffer = buffer
+            if let data { buffer.append(data) }
+            self.readPlaylist(upstream, head: head, base: base, id: id, buffer: buffer, finished: isComplete || error != nil)
+        }
     }
 }
