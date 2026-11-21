@@ -28,7 +28,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Direct : redirection cassée réparée après un refus TLS ; un nouvel essai après un 407 (compte à une connexion) | ✅ | ✅ (build 104) | ✅ (407) | ⏳ |
 | Direct : après un refus TLS, reprise depuis le MPEG-TS sur l'adresse réparée ; réparation d'emblée une fois vue | ✅ | ✅ (build 105) | ✅ | ⏳ |
 | Direct comme le lecteur web : agent VLC par défaut, redirection réparée dès le premier chargement, 0,5 s entre deux flux | ✅ | ✅ (build 106) | ✅ (réglage par défaut) | ⏳ |
-| Relais local des flux (127.0.0.1) : direct, replay, films ; redirections réparées à chaque saut, HLS réécrit, séance précédente coupée + 0,5 s ; réglage pour le désactiver | ✅ | ⏳ | ✅ (routes, réécriture HLS, en-têtes) | ⏳ |
+| Relais local des flux (127.0.0.1) : direct, replay, films ; redirections réparées à chaque saut, HLS réécrit, séance précédente coupée + 0,5 s ; réglage pour le désactiver | ✅ | ✅ (build 107) | ✅ (routes, réécriture HLS, en-têtes) | ⏳ |
 | Keychain, reconnexion automatique, mode dégradé | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
