@@ -184,6 +184,8 @@ final class AppModel {
             : URLSessionHTTPClient(userAgent: settings.userAgentPreset.value,
                                    trustsInvalidCertificates: settings.acceptInvalidStreamCertificates)
         EngineFactory.applyCertificatePolicy(acceptInvalid: settings.acceptInvalidStreamCertificates)
+        StreamRelay.shared.configure(userAgent: settings.userAgentPreset.value,
+                                     trustsInvalidCertificates: settings.acceptInvalidStreamCertificates)
         client = XtreamClient(credentials: credentials, http: http, policy: settings.transportSecurity)
         serverDisplayName = credentials.server.displayHost
         isSecureConnection = credentials.server.isSecure

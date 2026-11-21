@@ -369,11 +369,19 @@ final class PlaybackController {
         log.log(.info, "lecture", "Chargement \(gen) : \(attempt) — \(request.url.absoluteString)")
 
         let http = client.http
+        let useRelay = mediaOverride == nil && app.settings.streamRelay
         let repairRedirect = mediaOverride == nil
         let loadRequest = request
         loadTask = Task { [weak self] in
             do {
                 var request = loadRequest
+                if useRelay, let local = await StreamRelay.shared.localURL(for: request.url) {
+                    // Relais local (comme le lecteur web) : il répare les redirections à chaque saut,
+                    // coupe le flux précédent et attend 0,5 s avant d'ouvrir celui-ci.
+                    guard let self, gen == self.generation, !Task.isCancelled else { return }
+                    request.url = local
+                    return try await engine.load(request)
+                }
                 if pause > 0 { try await Task.sleep(nanoseconds: UInt64(pause * 1_000_000_000)) }
                 if repairRedirect {
                     // Redirection vers « https://…:8080 » qui ne parle que HTTP (fournisseur mal
@@ -413,6 +421,7 @@ final class PlaybackController {
     /// Arrête le flux du moteur et note l'heure (pause avant le flux suivant).
     private func release(_ engine: PlaybackEngine) {
         engine.stop()
+        StreamRelay.shared.stopAll()
         streamReleasedAt = now
     }
 

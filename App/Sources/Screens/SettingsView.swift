@@ -237,6 +237,11 @@ private struct NetworkSettings: View {
                                                                                  set: { v in app.updateSettings { $0.userAgentPreset = v } })) {
                 ForEach(UserAgentPreset.allCases, id: \.self) { Text($0.displayName).tag($0) }
             }
+            Toggle("Relais local des flux", isOn: Binding(
+                get: { app.settings.streamRelay },
+                set: { v in app.updateSettings { $0.streamRelay = v } }))
+            Text("Le lecteur passe par un petit relais dans l'Apple TV, qui va chercher le flux, répare les redirections du fournisseur et coupe le flux précédent avant d'ouvrir le suivant. À désactiver seulement si une chaîne ne se lance plus.")
+                .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
             Toggle("Accepter les certificats non vérifiés du fournisseur", isOn: Binding(
                 get: { app.settings.acceptInvalidStreamCertificates },
                 set: { v in app.updateSettings { $0.acceptInvalidStreamCertificates = v } }))

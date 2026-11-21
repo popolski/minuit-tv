@@ -135,6 +135,7 @@ final class PersistenceTests: XCTestCase {
         XCTAssertEqual(settings.transportSecurity, .allowHTTP, "HTTP accepté par défaut : la majorité des serveurs Xtream")
         XCTAssertEqual(settings.enginePreference, .automatic)
         XCTAssertEqual(settings.userAgentPreset, .vlc, "agent VLC par défaut, comme le lecteur web")
+        XCTAssertTrue(settings.streamRelay, "flux lus par le relais local par défaut")
         let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
         XCTAssertEqual(decoded, settings)
     }

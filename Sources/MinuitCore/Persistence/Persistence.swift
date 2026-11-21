@@ -169,6 +169,8 @@ public struct AppSettings: Sendable, Codable, Equatable {
     public var cleanChannelNames: Bool = true
     /// Aperçu vidéo muet de la chaîne focalisée dans le guide.
     public var guidePreview: Bool = true
+    /// Flux lus à travers le relais local (comme le lecteur web) plutôt que directement par le moteur.
+    public var streamRelay: Bool = true
 
     public init() {}
 
@@ -180,7 +182,7 @@ public struct AppSettings: Sendable, Codable, Equatable {
         case userAgentPreset = "streamUserAgent"
         case enginePreference, transportSecurity, catchup, invertZapDirection,
              showInfoOnZap, matchContentFrameRate, useXMLTV, epgDaysAhead, acceptInvalidStreamCertificates, adaptiveQuality,
-             customXMLTVURL, cleanChannelNames, guidePreview
+             customXMLTVURL, cleanChannelNames, guidePreview, streamRelay
     }
 
     /// Décodage tolérant : un réglage absent ou illisible prend sa valeur par défaut au lieu
@@ -203,6 +205,7 @@ public struct AppSettings: Sendable, Codable, Equatable {
         customXMLTVURL = c.tolerant(.customXMLTVURL) ?? d.customXMLTVURL
         cleanChannelNames = c.tolerant(.cleanChannelNames) ?? d.cleanChannelNames
         guidePreview = c.tolerant(.guidePreview) ?? d.guidePreview
+        streamRelay = c.tolerant(.streamRelay) ?? d.streamRelay
     }
 }
 

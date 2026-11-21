@@ -131,10 +131,15 @@ final class VODPlayerController {
                                         matchContent: app.settings.matchContentFrameRate)
         log.log(.info, "vod", "Lecture \(gen) [\(kind.displayName)] départ \(Int(start)) s — \(fileURL.absoluteString)")
         let http = app.client?.http
+        let useRelay = app.settings.streamRelay
         loadTask = Task { [weak self] in
             do {
                 var request = request
-                if !DemoMode.isEnabled, let http {
+                if !DemoMode.isEnabled, useRelay, let local = await StreamRelay.shared.localURL(for: request.url) {
+                    // Relais local, comme pour le direct et les archives.
+                    guard let self, gen == self.generation, !Task.isCancelled else { return }
+                    request.url = local
+                } else if !DemoMode.isEnabled, let http {
                     // Même réparation que pour les archives (redirection HTTPS vers un port HTTP).
                     let playable = await RedirectRepair.playableURL(for: request.url, using: http)
                     guard let self, gen == self.generation, !Task.isCancelled else { return }
@@ -170,6 +175,7 @@ final class VODPlayerController {
         guard let engine else { return }
         engine.onEvent = nil
         engine.stop()
+        StreamRelay.shared.stopAll()
         engine.renderView.removeFromSuperview()
         self.engine = nil
     }
