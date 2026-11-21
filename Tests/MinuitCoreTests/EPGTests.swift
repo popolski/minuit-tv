@@ -170,6 +170,11 @@ final class TimeTests: XCTestCase {
         let derived = ServerTimeZoneResolver.resolve(identifier: "Not/AZone", timestampNow: Int(utc("2026-11-02 15:30").timeIntervalSince1970),
                                                      timeNow: "2026-11-02 21:00:00")
         XCTAssertEqual(derived.secondsFromGMT(), 5 * 3600 + 1800, "UTC+05:30 déduit")
+        let now = Int(utc("2026-11-02 15:30").timeIntervalSince1970)
+        XCTAssertEqual(ServerTimeZoneResolver.resolve(identifier: "Europe/Paris", timestampNow: now, timeNow: "2026-11-02 16:30:02").identifier,
+                       "Europe/Paris", "identifiant conforme à l'horloge du serveur : gardé")
+        XCTAssertEqual(ServerTimeZoneResolver.resolve(identifier: "Europe/London", timestampNow: now, timeNow: "2026-11-02 16:30:02").secondsFromGMT(),
+                       3600, "identifiant contredit par l'horloge du serveur : l'horloge prime, comme le lecteur web")
         XCTAssertEqual(ServerTimeZoneResolver.resolve(identifier: nil, timestampNow: nil, timeNow: nil).secondsFromGMT(), 0)
     }
 

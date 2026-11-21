@@ -476,9 +476,15 @@ final class PlaybackController {
         case .sourceReset:
             handleFailure(.sourceEnded)
         case .ended:
-            if case .archive = target {
-                showToast("Fin du programme")
-                isPaused = true
+            if case .archive(let channel, let window, _) = target {
+                if window.isStartOver {
+                    // Rattrapé jusqu'au moment de la demande : retour au direct, comme le lecteur web.
+                    showToast("Retour au direct")
+                    tune(.live(channel))
+                } else {
+                    showToast("Fin du programme")
+                    isPaused = true
+                }
             } else {
                 handleFailure(.sourceEnded)
             }
@@ -793,40 +799,25 @@ final class PlaybackController {
             showToast(availability.userLabel)
             return
         }
-        // Le direct (ou l'aperçu du guide) occupe la connexion du compte : sondée en même temps,
-        // l'archive revient vide sur les comptes à une connexion. On libère d'abord, on rétablit
-        // le direct si le replay est refusé.
-        let previousTarget = target
-        let wasStreaming = engine != nil
-        if wasStreaming { teardown() }
+        // Comme le lecteur web, dont le replay fonctionne chez ce fournisseur : pas de sondage
+        // (il occupait la connexion du compte et passait par URLSession, soumis à HSTS) ; l'URL
+        // `/timeshift/…/<id>.ts` est lue directement par le relais, qui coupe le direct avant.
         isPreview = false
-        phase = .resolvingArchive
-        let connections = session.account.maxConnections.map(String.init) ?? "?"
-        log.log(.info, "replay", "Vérification de l'archive (connexions max : \(connections), flux arrêté : \(wasStreaming ? "oui" : "non"))")
-        if wasStreaming { try? await Task.sleep(nanoseconds: 1_500_000_000) }
-        let formats: [StreamFormat] = [.hls, .mpegts].filter { format in
+        let formats: [StreamFormat] = [.mpegts, .hls].filter { format in
             session.account.allowedFormats.contains(format) && !archiveLadder(for: [format]).isEmpty
         }
-        let resolution = await app.archive.resolve(channel: channel.id, window: window, formats: formats)
-        switch resolution {
-        case .unavailable(let reason):
-            showToast(reason)
-            log.log(.warning, "replay", reason)
-            if let previousTarget, previousTarget.isLive {
-                tune(previousTarget)
-            } else {
-                phase = .idle
-            }
-        case .playable(let playableFormats, let style):
-            let ladder = archiveLadder(for: playableFormats)
-            log.log(.info, "replay", "Formats lisibles : \(playableFormats.map(\.rawValue)) — essais : \(ladder.map(\.description))")
-            archive = ArchiveSession(original: window, current: window, format: ladder.first?.format ?? playableFormats[0],
-                                     formats: playableFormats, style: style, baseOffset: 0, channel: channel.id)
-            archivePosition = 0
-            panel = .none
-            displayedChannel = channel.id
-            tune(.archive(channel.id, window, offset: window.programmeOffset))
+        guard let first = formats.first else {
+            showToast("Aucun format d'archive autorisé par le compte.")
+            return
         }
+        let startText = XtreamURLBuilder.timeshiftTimestamp(window.requestStart, timeZone: session.server.timeZone)
+        log.log(.info, "replay", "Archive demandée directement : \(startText) (\(session.server.timeZone.identifier)), \(window.durationMinutes) min, essais : \(archiveLadder(for: formats).map(\.description))")
+        archive = ArchiveSession(original: window, current: window, format: first, formats: formats, style: .path,
+                                 baseOffset: 0, channel: channel.id)
+        archivePosition = 0
+        panel = .none
+        displayedChannel = channel.id
+        tune(.archive(channel.id, window, offset: window.programmeOffset))
     }
 
     /// Avance / recul dans l'archive (secondes, relatif).

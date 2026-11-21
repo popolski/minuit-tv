@@ -32,7 +32,6 @@ final class AppModel {
     @ObservationIgnored weak var activeVOD: VODPlayerController?
     /// Serveur local de l'écran de connexion (configuration depuis le téléphone).
     let phoneSetup = PhoneSetupServer()
-    @ObservationIgnored let archive = ArchiveService()
     @ObservationIgnored private(set) var client: XtreamClient?
 
     @ObservationIgnored private let keychain = KeychainCredentialStore()
@@ -60,9 +59,6 @@ final class AppModel {
             await self.signIn(server: server, username: username, password: password)
             if case .signedOut(let message) = self.phase { return message ?? "Connexion refusée." }
             return nil
-        }
-        archive.onStyleConfirmed = { [weak self] style in
-            self?.updateSettings { $0.catchup.confirmedStyle = style }
         }
     }
 
@@ -229,7 +225,6 @@ final class AppModel {
         applyCatalog(categories, channels, savedAt: Date())
         try? cache.write(CatalogSnapshot(categories: categories, channels: channels), name: catalogCacheName(credentials))
         epg.configure(client: client, session: session, channels: channels, settings: settings)
-        archive.configure(client: client, session: session, settings: settings.catchup)
         epg.refreshFullIfNeeded()
     }
 
@@ -241,7 +236,6 @@ final class AppModel {
         if prefs != preferences { savePreferences(prefs) }
         if let client, let session {
             epg.configure(client: client, session: session, channels: channels, settings: settings)
-            archive.configure(client: client, session: session, settings: settings.catchup)
         }
         if let client, let credentials {
             vod.configure(client: client, cacheKey: catalogCacheName(credentials).replacingOccurrences(of: "catalog-", with: ""))

@@ -49,8 +49,6 @@ public enum CatchupAvailability: Sendable, Equatable {
     case available(ArchiveWindow, expiresAt: Date)
     /// Programme trop ancien pour l'archive annoncée.
     case expired
-    /// Le fournisseur indique explicitement l'absence d'archive pour ce programme.
-    case notArchivedByProvider
 
     public var window: ArchiveWindow? {
         switch self {
@@ -66,7 +64,6 @@ public enum CatchupAvailability: Sendable, Equatable {
         case .startOver: return "Reprendre au début"
         case .available: return "Disponible en replay"
         case .expired: return "Replay expiré"
-        case .notArchivedByProvider: return "Non archivé par le fournisseur"
         }
     }
 }
@@ -76,30 +73,27 @@ public struct CatchupSettings: Sendable, Codable, Equatable {
     public var paddingBefore: TimeInterval = 120
     /// Marge après la fin annoncée.
     public var paddingAfter: TimeInterval = 300
-    /// Style d'URL de timeshift confirmé pour ce serveur (nil : à déterminer).
-    public var confirmedStyle: XtreamURLBuilder.TimeshiftStyle?
 
     public init() {}
 
-    enum CodingKeys: String, CodingKey { case paddingBefore, paddingAfter, confirmedStyle }
+    enum CodingKeys: String, CodingKey { case paddingBefore, paddingAfter }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = CatchupSettings()
         paddingBefore = c.tolerant(.paddingBefore) ?? d.paddingBefore
         paddingAfter = c.tolerant(.paddingAfter) ?? d.paddingAfter
-        confirmedStyle = c.tolerant(.confirmedStyle)
     }
 }
 
 public enum CatchupEvaluator {
-    /// Évalue la disponibilité **annoncée**. Le résultat doit encore être confirmé
-    /// par un sondage réel (`ArchiveProbe`) avant d'afficher le replay comme lisible.
+    /// Évalue la disponibilité, comme le lecteur web dont le replay fonctionne : chaîne archivée
+    /// et programme dans la durée d'archive suffisent (le drapeau `has_archive` du guide, peu
+    /// fiable, est ignoré) ; l'archive est ensuite demandée directement, sans sondage.
     public static func evaluate(programme: Programme, channel: Channel, now: Date,
                                 settings: CatchupSettings = CatchupSettings()) -> CatchupAvailability {
         guard let archive = channel.archive, archive.days > 0 else { return .channelHasNoArchive }
         if programme.start > now { return .upcoming }
-        if programme.archiveFlag == false && programme.end <= now { return .notArchivedByProvider }
 
         let oldestAvailable = now.addingTimeInterval(-archive.window)
         if programme.start < oldestAvailable { return .expired }
@@ -108,9 +102,8 @@ public enum CatchupEvaluator {
         let requestStart = floorToMinute(paddedStart)
 
         if programme.end > now {
-            // En cours : on demande jusqu'à la fin prévue ; le serveur sert ce qui est enregistré.
-            let end = programme.end.addingTimeInterval(settings.paddingAfter)
-            let minutes = max(1, Int((end.timeIntervalSince(requestStart) / 60).rounded(.up)))
+            // En cours : jusqu'à maintenant, comme le lecteur web (une fin dans le futur peut être refusée).
+            let minutes = max(1, Int((now.timeIntervalSince(requestStart) / 60).rounded(.up)))
             return .startOver(ArchiveWindow(requestStart: requestStart, durationMinutes: minutes,
                                             programmeStart: programme.start, programmeEnd: programme.end,
                                             title: programme.title, isStartOver: true))

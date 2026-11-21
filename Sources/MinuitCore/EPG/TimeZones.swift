@@ -2,28 +2,26 @@ import Foundation
 
 /// Détermine le fuseau horaire du serveur Xtream.
 ///
-/// Ordre de préférence :
-/// 1. l'identifiant IANA annoncé (`server_info.timezone`, ex. `Europe/Paris`) ;
-/// 2. un décalage déduit de `time_now` (heure murale du serveur) et `timestamp_now` (UTC) ;
-/// 3. UTC.
-///
-/// Un fuseau IANA gère les changements d'heure ; un décalage fixe ne le peut pas,
-/// d'où la priorité donnée à l'identifiant.
+/// Comme le lecteur web (dont le replay fonctionne chez ce fournisseur), l'heure murale réelle
+/// du serveur fait foi : décalage déduit de `time_now` (heure murale) et `timestamp_now` (UTC).
+/// L'identifiant IANA annoncé (`server_info.timezone`) n'est retenu que s'il donne ce même
+/// décalage (il gère alors les changements d'heure) ; sans mesure, il sert seul ; sinon UTC.
+/// Un identifiant annoncé qui ne correspond pas à l'horloge du serveur décalerait toutes les
+/// URL de timeshift.
 public enum ServerTimeZoneResolver {
     public static func resolve(identifier: String?, timestampNow: Int?, timeNow: String?) -> TimeZone {
-        if let identifier = identifier?.trimmingCharacters(in: .whitespaces), !identifier.isEmpty,
-           let zone = TimeZone(identifier: identifier) {
-            return zone
-        }
+        let announced = identifier.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { TimeZone(identifier: $0) }
         if let timestampNow, let timeNow, let wall = parseWallClock(timeNow, in: TimeZone(identifier: "UTC")!) {
             let raw = wall.timeIntervalSince1970 - TimeInterval(timestampNow)
             // Arrondi au quart d'heure (fuseaux réels : multiples de 15 min).
             let rounded = Int((raw / 900).rounded()) * 900
             if abs(rounded) <= 14 * 3600, let zone = TimeZone(secondsFromGMT: rounded) {
+                let now = Date(timeIntervalSince1970: TimeInterval(timestampNow))
+                if let announced, announced.secondsFromGMT(for: now) == rounded { return announced }
                 return zone
             }
         }
-        return TimeZone(identifier: "UTC")!
+        return announced ?? TimeZone(identifier: "UTC")!
     }
 
     /// Analyse `YYYY-MM-DD HH:mm:ss` dans le fuseau indiqué.

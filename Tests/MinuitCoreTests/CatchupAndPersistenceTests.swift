@@ -35,8 +35,9 @@ final class CatchupTests: XCTestCase {
     func testUnavailableCases() {
         XCTAssertEqual(CatchupEvaluator.evaluate(programme: programme("2026-11-02 18:00", "2026-11-02 19:00"), channel: channel, now: now), .upcoming)
         XCTAssertEqual(CatchupEvaluator.evaluate(programme: programme("2026-10-20 18:00", "2026-10-20 19:00"), channel: channel, now: now), .expired)
-        XCTAssertEqual(CatchupEvaluator.evaluate(programme: programme("2026-11-02 12:00", "2026-11-02 13:00", archive: false), channel: channel, now: now),
-                       .notArchivedByProvider)
+        guard case .available = CatchupEvaluator.evaluate(programme: programme("2026-11-02 12:00", "2026-11-02 13:00", archive: false),
+                                                          channel: channel, now: now)
+        else { return XCTFail("has_archive = 0 ignoré, comme le lecteur web") }
         let noArchive = Channel(id: ChannelID(102), name: "F2")
         XCTAssertEqual(CatchupEvaluator.evaluate(programme: programme("2026-11-02 12:00", "2026-11-02 13:00"), channel: noArchive, now: now),
                        .channelHasNoArchive)

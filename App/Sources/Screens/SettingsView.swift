@@ -213,9 +213,7 @@ private struct ReplaySettings: View {
                                                              set: { v in app.updateSettings { $0.catchup.paddingAfter = Double(v) * 60 } })) {
                 ForEach([0, 2, 5, 10, 15], id: \.self) { Text("\($0) min").tag($0) }
             }
-            LabeledContent("Format d'URL d'archive", value: app.settings.catchup.confirmedStyle?.rawValue ?? "Non encore déterminé")
-            Button("Redétecter le format d'archive") { app.updateSettings { $0.catchup.confirmedStyle = nil } }
-            Text("Le replay n'est proposé que si la chaîne l'annonce, et n'est lancé qu'après vérification réelle de l'archive auprès du serveur.")
+            Text("Le replay est proposé sur les chaînes archivées, dans la durée annoncée par le fournisseur, et demandé directement (format MPEG-TS, comme le lecteur web).")
                 .font(Theme.Typeface.caption(20)).foregroundStyle(Theme.Palette.textSecondary)
         }
         .navigationTitle("Replay")
