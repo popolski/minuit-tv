@@ -30,7 +30,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Direct comme le lecteur web : agent VLC par défaut, redirection réparée dès le premier chargement, 0,5 s entre deux flux | ✅ | ✅ (build 106) | ✅ (réglage par défaut) | ⏳ |
 | Relais local des flux (127.0.0.1) : direct, replay, films ; redirections réparées à chaque saut, HLS réécrit, séance précédente coupée + 0,5 s ; réglage pour le désactiver | ✅ | ✅ (build 107) | ✅ (routes, réécriture HLS, en-têtes) | ❌ même échec (build 107) |
 | Relais en TCP brut (framework Network), sans URLSession : `.dad` est dans la liste HSTS préchargée, CFNetwork forçait HTTPS sur `….dad:8080` ; 407/456/458 réessayé après 4 s | ✅ | ✅ (build 108) | ✅ (requête, en-tête, chunked) | ⏳ |
-| Replay comme le lecteur web : sans sondage, URL `/timeshift/…/<id>.ts` lue directement par le relais, fuseau mesuré sur l'horloge du serveur, `has_archive` ignoré, « reprendre au début » jusqu'à maintenant puis retour au direct | ✅ | ⏳ (build 109) | ✅ (fuseau, disponibilité) | ⏳ |
+| Replay comme le lecteur web : sans sondage, URL `/timeshift/…/<id>.ts` lue directement par le relais, fuseau mesuré sur l'horloge du serveur, `has_archive` ignoré, « reprendre au début » jusqu'à maintenant puis retour au direct | ✅ | ✅ (build 109) | ✅ (fuseau, disponibilité) | ⏳ |
 | Keychain, reconnexion automatique, mode dégradé | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
