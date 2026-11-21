@@ -29,7 +29,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Direct : après un refus TLS, reprise depuis le MPEG-TS sur l'adresse réparée ; réparation d'emblée une fois vue | ✅ | ✅ (build 105) | ✅ | ⏳ |
 | Direct comme le lecteur web : agent VLC par défaut, redirection réparée dès le premier chargement, 0,5 s entre deux flux | ✅ | ✅ (build 106) | ✅ (réglage par défaut) | ⏳ |
 | Relais local des flux (127.0.0.1) : direct, replay, films ; redirections réparées à chaque saut, HLS réécrit, séance précédente coupée + 0,5 s ; réglage pour le désactiver | ✅ | ✅ (build 107) | ✅ (routes, réécriture HLS, en-têtes) | ❌ même échec (build 107) |
-| Relais en TCP brut (framework Network), sans URLSession : `.dad` est dans la liste HSTS préchargée, CFNetwork forçait HTTPS sur `….dad:8080` ; 407/456/458 réessayé après 4 s | ✅ | ⏳ (build 108) | ✅ (requête, en-tête, chunked) | ⏳ |
+| Relais en TCP brut (framework Network), sans URLSession : `.dad` est dans la liste HSTS préchargée, CFNetwork forçait HTTPS sur `….dad:8080` ; 407/456/458 réessayé après 4 s | ✅ | ✅ (build 108) | ✅ (requête, en-tête, chunked) | ⏳ |
 | Keychain, reconnexion automatique, mode dégradé | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AVPlayer (HLS) | ✅ | ✅ | ⏳ | ⏳ |
 | Moteur AetherEngine (TS, HLS, archives) | ✅ | ✅ | ⏳ | ⏳ |
