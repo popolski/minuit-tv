@@ -31,6 +31,7 @@ struct MinuitApp: App {
                 // Veille ou changement d'application : on libère la connexion et le décodeur.
                 app.playback.suspend()
                 app.activeVOD?.suspend()
+                StreamRelay.shared.suspend()
             case .active:
                 if router.isPlayerPresented { app.playback.resume() }
                 app.activeVOD?.resume()

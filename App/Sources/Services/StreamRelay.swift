@@ -82,12 +82,31 @@ final class StreamRelay: @unchecked Sendable {
         queue.async { self.cut(before: Int.max) }
     }
 
+    /// Passage en arrière-plan : tvOS récupère les sockets d'écoute d'une app suspendue, et
+    /// un écouteur gardé tel quel refuserait ensuite les connexions du moteur (-1004).
+    /// On ferme tout ; l'écoute est recréée à la prochaine lecture.
+    func suspend() {
+        queue.async {
+            self.cut(before: Int.max)
+            self.listener?.cancel()
+            self.listener = nil
+            self.port = nil
+        }
+    }
+
     // MARK: Écoute
 
     private func readyPort() async -> UInt16? {
         await withCheckedContinuation { continuation in
             queue.async {
-                if let port = self.port { return continuation.resume(returning: port) }
+                if let port = self.port, self.listener?.state == .ready { return continuation.resume(returning: port) }
+                if self.port != nil {
+                    // Port gardé mais écoute plus prête (socket récupéré par le système) : on recrée.
+                    self.log.log(.info, "relais", "Écoute du relais perdue : recréée")
+                    self.listener?.cancel()
+                    self.listener = nil
+                    self.port = nil
+                }
                 self.portWaiters.append(continuation)
                 if self.listener == nil { self.startListener() }
             }
@@ -96,12 +115,17 @@ final class StreamRelay: @unchecked Sendable {
 
     private func startListener() {
         let parameters = NWParameters.tcp
-        parameters.requiredInterfaceType = .loopback
         parameters.acceptLocalOnly = true
+        // Adresse IPv4 de boucle explicite : le moteur se connecte à 127.0.0.1.
+        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
         do {
-            let listener = try NWListener(using: parameters, on: .any)
+            let listener = try NWListener(using: parameters)
             listener.newConnectionHandler = { [weak self] connection in self?.accept(connection) }
-            listener.stateUpdateHandler = { [weak self] state in self?.listenerChanged(state) }
+            listener.stateUpdateHandler = { [weak self, weak listener] state in
+                // Les états d'un écouteur déjà remplacé sont ignorés.
+                guard let self, let listener, listener === self.listener else { return }
+                self.listenerChanged(state)
+            }
             listener.start(queue: queue)
             self.listener = listener
         } catch {
@@ -116,15 +140,16 @@ final class StreamRelay: @unchecked Sendable {
             port = listener?.port?.rawValue
             log.log(.info, "relais", "Relais local prêt (port \(port.map { "\($0)" } ?? "?"))")
             resumeWaiters(port)
-        case .failed(let error):
+        case .failed(let error), .waiting(let error):
+            // En attente ou en échec : le moteur lira l'adresse directement plutôt que d'attendre.
             log.log(.warning, "relais", "Relais local en échec : \(error)")
             listener?.cancel()
             listener = nil
             port = nil
             resumeWaiters(nil)
         case .cancelled:
-            listener = nil
-            port = nil
+            // Un écouteur remplacé entre-temps n'efface pas le nouveau.
+            break
         default:
             break
         }
