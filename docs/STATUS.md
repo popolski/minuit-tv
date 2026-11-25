@@ -55,6 +55,7 @@ Légende : ✅ fait · ⏳ à faire · — sans objet
 | Noms de chaînes simplifiés (sans préfixe ni qualité), réglable | ✅ | ✅ | ✅ | ⏳ |
 | Aperçu vidéo muet dans la fiche du guide, réglable | ✅ | ✅ | — | ⏳ |
 | Icône et Top Shelf | ✅ | ✅ | — | ⏳ |
+| Relais local : écoute recréée après la mise en veille, liée à 127.0.0.1 (build 109 : -1004) | ✅ | ✅ (build 110) | — | ⏳ |
 | Films et séries : client VOD Xtream, décodage tolérant, URL de lecture, repli par catégorie | ✅ | ✅ | ✅ | ⏳ |
 | Films et séries : onglets (grille, catégories, ajouts récents), fiches, recherche | ✅ | ✅ | ✅ simulateur (grille, fiche) | ⏳ |
 | Films et séries : reprise, vus, « Continuer à regarder », « À suivre » | ✅ | ✅ | ✅ (progression) | ⏳ |
